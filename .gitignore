@@ -1,0 +1,7 @@
+# server node_modules
+/node_modules
+.env
+
+/z_frontend
+/nodemon.json
+/getSite.sh
