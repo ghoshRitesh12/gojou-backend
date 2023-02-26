@@ -39,7 +39,7 @@ class Parser {
 
       const $ = load(mainPage.data);
 
-      const selector = '#main-content > section > div.tab-content > div > div.film_list-wrap .flw-item'
+      const selector = '#main-content .tab-content .film_list-wrap .flw-item';
 
       res.hasNextPage =
         $('.pagination > li').length > 0 ?
@@ -56,17 +56,7 @@ class Parser {
 
       if (res.totalPages === null && !res.hasNextPage) res.totalPages = 1;
 
-      $(selector).each((i, el) => {
-        res.animes.push({
-          id: $(el).find('.film-detail > .film-name > a.dynamic-name').attr('href').slice(1),
-          name: $(el).find('.film-detail > .film-name > a.dynamic-name').text(),
-          poster: $(el).find('.film-poster .film-poster-img').attr('data-src').trim(),
-          duration: $(el).find('.film-detail > div.fd-infor > span.fdi-item.fdi-duration').text(),
-          aboutPage: new URL($(el).find('.film-detail > .film-name > a.dynamic-name').attr('href'), BASE_URL),
-          rating: $(el).find('.film-poster .tick-rate').text().trim() || null,
-          episodes: $(el).find('.film-poster .tick-eps').text().trim().split(" ").pop() || null
-        });
-      })
+      res.animes = await this.extractAnimes($, selector);
 
       if (res.animes.length === 0) {
         res.totalPages = null;
@@ -106,7 +96,7 @@ class Parser {
 
       const $ = load(mainPage.data);
 
-      const selector = '#main-content .tab-content .film_list-wrap .flw-item'
+      const selector = '#main-content .tab-content .film_list-wrap .flw-item';
 
       res.hasNextPage =
         $('.pagination > li').length > 0 ?
@@ -123,19 +113,7 @@ class Parser {
 
       if (res.totalPages === 0 && !res.hasNextPage) res.totalPages = 1;
 
-      $(selector).each((i, el) => {
-        const animeId = $(el).find('.film-detail > .film-name > a.dynamic-name').attr('href').slice(1).split('?')[0];
-
-        res.animes.push({
-          id: animeId,
-          name: $(el).find('.film-detail > .film-name > a.dynamic-name').text(),
-          poster: $(el).find('.film-poster .film-poster-img').attr('data-src').trim(),
-          duration: $(el).find('.film-detail > div.fd-infor > span.fdi-item.fdi-duration').text(),
-          aboutPage: new URL(animeId, BASE_URL).toString(),
-          rating: $(el).find('.film-poster .tick-rate').text().trim() || null,
-          episodes: $(el).find('.film-poster .tick-eps').text().trim().split(" ").pop() || null
-        });
-      })
+      res.animes = await this.extractAnimes($, selector);
 
       if (res.animes.length === 0) {
         res.totalPages = 0;
@@ -203,6 +181,8 @@ class Parser {
     const res = {
       spotlightAnimes: [],
       trendingAnimes: [],
+      latestEpisodeAnimes: [],
+      topUpcomingAnimes: []
     }
 
     try {
@@ -217,13 +197,12 @@ class Parser {
       const $ = load(mainPage.data);
 
       const spotlightSelector = '#slider .swiper-wrapper .swiper-slide';
-
       $(spotlightSelector).each((i, el) => {
         const otherInfo = 
           $(el).find('.deslide-item-content .sc-detail .scd-item').map((i, el) => $(el).text().trim()).get();
 
         res.spotlightAnimes.push({
-          rank: $(el).find('.deslide-item-content .desi-sub-text')?.text().trim().split(" ")[0].slice(1),
+          rank: parseInt($(el).find('.deslide-item-content .desi-sub-text')?.text().trim().split(" ")[0].slice(1)),
           id: $(el).find('.deslide-item-content .desi-buttons a')?.last()?.attr('href')?.slice(1).trim(),
           name: $(el).find('.deslide-item-content .desi-head-title.dynamic-name')?.text().trim(),
           description: $(el).find('.deslide-item-content .desi-description')?.text()?.split('[').shift().trim(),
@@ -235,16 +214,22 @@ class Parser {
 
 
       const trendingSelector = '#trending-home .swiper-wrapper .swiper-slide';
-
       $(trendingSelector).each((i, el) => {
         res.trendingAnimes.push({
-          rank: $(el).find('.item .number')?.children()?.first()?.text().trim(),
+          rank: parseInt($(el).find('.item .number')?.children()?.first()?.text().trim()),
           name: $(el).find('.item .number .film-title.dynamic-name')?.text().trim(),
           id: $(el).find('.item .film-poster')?.attr('href')?.slice(1).trim(),
           poster: $(el).find('.item .film-poster .film-poster-img')?.attr('data-src')?.trim(),
         })
       })
 
+
+      const latestEpisodeSelector = '#main-content .block_area_home:nth-of-type(1) .tab-content .film_list-wrap .flw-item';
+      res.latestEpisodeAnimes = await this.extractAnimes($, latestEpisodeSelector);
+
+
+      const topUpcomingSelector = '#main-content .block_area_home:nth-of-type(3) .tab-content .film_list-wrap .flw-item';
+      res.topUpcomingAnimes = await this.extractAnimes($, topUpcomingSelector);
 
       return res;
 
@@ -625,10 +610,36 @@ class Parser {
       .attr('data-id');
   }
 
+
+  static extractAnimes = async ($, selector) => {
+    try {
+      const animes = [];
+
+      $(selector).each((i, el) => {
+        const animeId = $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).split('?ref=search')[0];
+  
+        animes.push({
+          id: animeId,
+          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
+          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+          duration: $(el).find('.film-detail .fd-infor .fdi-item.fdi-duration')?.text()?.trim(),
+          type: $(el).find('.film-detail .fd-infor .fdi-item:nth-of-type(1)')?.text()?.trim(),
+          aboutPage: new URL(animeId, BASE_URL).toString(),
+          rating: $(el).find('.film-poster .tick-rate')?.text()?.trim() || null,
+          episodes: $(el).find('.film-poster .tick-eps')?.text()?.trim().split(" ").pop() || null
+        });
+      })
+  
+      return animes; 
+
+    } catch (err) {
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
   // https://storage.googleapis.com/axxu-ppjxq-1651506793.appspot.com/8GLVM3JKPLDN/st25_5_deep-insanity-the-lost-child-episode-9-HD.mp4
 
 }
-
 
 
 export default Parser;
