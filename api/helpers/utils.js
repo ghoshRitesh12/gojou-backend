@@ -1,13 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const USER_AGENT = process.env.APP_USER_AGENT;
-const ACCEPT_HEADER = process.env.APP_ACCEPT_HEADER;
+const USER_AGENT = process.env.APP_SRC_USER_AGENT;
+const ACCEPT_HEADER = process.env.APP_SRC_ACCEPT_HEADER;
 
-const BASE_URL = process.env.APP_SOURCE_BASE_URL;
-const ajax_url = process.env.APP_SOURCE_AJAX_URL;
-const home_url = process.env.APP_SOURCE_HOME_URL
-const search_url = process.env.APP_SOURCE_SEARCH_URL;
+const BASE_URL = process.env.APP_SRC_BASE_URL;
+const ajax_url = process.env.APP_SRC_AJAX_URL;
+const home_url = process.env.APP_SRC_HOME_URL
+const search_url = process.env.APP_SRC_SEARCH_URL;
 
 const Servers = {
   AsianLoad: 'asianload',

@@ -27,7 +27,7 @@ app.use(express.json());
 
   app.use('/api/v1', cors(corsOptions), apiRouter);
 
-  app.get('/niq', (req, res) => {
+  app.get('/ni', (req, res) => {
     res.sendFile('/anime-watch-party/backend/z_frontend/TEST.html');
   })
 
@@ -41,6 +41,4 @@ app.use(express.json());
   app.listen(PORT, () => console.log(`🚀 @ http://localhost:${PORT}`));
 
 })();
-
-// js/watch.min.js?v=1.9:1
 
