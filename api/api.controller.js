@@ -43,6 +43,24 @@ const getAnimeSearchResult = async (req, res, next) => {
   }
 }
 
+// /quick-search?q=steins
+const getAnimeQuickSearch = async (req, res, next) => {
+  try {
+    const q = req.query.q ? decodeURIComponent(req.query.q) : null;
+
+    if(q === null)
+      throw createHttpError.BadRequest('search keyword required');
+
+    const data = await Parser.scrapeAnimeSearchSuggestion(q);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    console.log(err);
+    next(err);   
+  }
+}
+
 
 // /home
 const getHomePage = async (req, res, next) => {
@@ -160,7 +178,7 @@ const getEpisodeSources = async(req, res, next) => {
 
 
 export default { 
-  getAnimeCategory, getAnimeSearchResult, 
+  getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
   getMostViewedAnime, getAnimeAboutInfo, getGenreAnime,
   getEpisodeSources, getEpisodeServers, getHomePage,
 }

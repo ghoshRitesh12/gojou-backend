@@ -149,6 +149,51 @@ class Parser {
       throw createHttpError.InternalServerError(err.message);
     }
   }
+  
+  
+  /**
+   * @param {q} suggest search query  
+   */
+  static scrapeAnimeSearchSuggestion = async (q) => {
+    const res = { animes: [] }
+
+    try {
+      const mainPage = await axios.get(
+        `${ajax_url}/search/suggest?keyword=${q}`, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept': "*/*",
+          'Referer': this.home_url,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+      });
+
+      const $ = load(mainPage.data.html);
+
+      const selector = '.nav-item:not(.nav-bottom)'
+
+      $(selector).each((i, el) => {
+        res.animes.push({
+          id: $(el).attr('href')?.split('?')[0].slice(1),
+          name: $(el).find('.srp-detail .film-name')?.text()?.trim(),
+          jname: 
+            $(el).find('.srp-detail .film-name')?.attr('data-jname')?.trim()
+              || 
+            $(el).find('.srp-detail .alias-name')?.text()?.trim(),
+          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+          moreInfo: [...$(el).find('.film-infor').contents().map((i, el) => $(el).text().trim())].filter(i => i)
+        });
+      })
+
+      
+      return res;
+
+    } catch (err) {
+      console.log(err.message);
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
 
 
   /**
@@ -183,7 +228,7 @@ class Parser {
           name: $(el).find('.deslide-item-content .desi-head-title.dynamic-name')?.text().trim(),
           description: $(el).find('.deslide-item-content .desi-description')?.text()?.split('[').shift().trim(),
           poster: $(el).find('.deslide-cover .deslide-cover-img .film-poster-img')?.attr('data-src').trim(),
-          japaneseName: $(el).find('.deslide-item-content .desi-head-title.dynamic-name')?.attr('data-jname').trim(),
+          jname: $(el).find('.deslide-item-content .desi-head-title.dynamic-name')?.attr('data-jname').trim(),
           otherInfo
         })
       })
