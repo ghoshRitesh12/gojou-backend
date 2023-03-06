@@ -624,7 +624,6 @@ class Parser {
           poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
           duration: $(el).find('.film-detail .fd-infor .fdi-item.fdi-duration')?.text()?.trim(),
           type: $(el).find('.film-detail .fd-infor .fdi-item:nth-of-type(1)')?.text()?.trim(),
-          aboutPage: new URL(animeId, BASE_URL).toString(),
           rating: $(el).find('.film-poster .tick-rate')?.text()?.trim() || null,
           episodes: $(el).find('.film-poster .tick-eps')?.text()?.trim().split(" ").pop() || null
         });
