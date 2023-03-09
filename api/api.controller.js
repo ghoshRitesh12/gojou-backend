@@ -76,25 +76,6 @@ const getHomePage = async (req, res, next) => {
 }
 
 
-// /most-viewed?period=month
-const getMostViewedAnime = async (req, res, next) => {
-  const periods = ['today', 'week', 'month'];
-  try {
-    const period = decodeURIComponent((!req.query.period) ? 'today' : req.query.period);
-
-    if(!periods.includes(period)) 
-      throw createHttpError.NotFound('invalid period')
-    
-    const data = await Parser.scrapeMostViewedAnime(period);
-    
-    res.status(200).json(data);
-    
-  } catch (err) {
-    next(err);   
-  }
-}
-
-
 // /info?id=attack-on-titan-112
 const getAnimeAboutInfo = async (req, res, next) => {
   try {
@@ -179,6 +160,6 @@ const getEpisodeSources = async(req, res, next) => {
 
 export default { 
   getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
-  getMostViewedAnime, getAnimeAboutInfo, getGenreAnime,
-  getEpisodeSources, getEpisodeServers, getHomePage,
+  getAnimeAboutInfo, getGenreAnime, getHomePage,
+  getEpisodeSources, getEpisodeServers
 }

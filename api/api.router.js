@@ -49,8 +49,6 @@ router.get('/search', apiController.getAnimeSearchResult);
 
 router.get('/quick-search', apiController.getAnimeQuickSearch);
 
-router.get('/most-viewed', apiController.getMostViewedAnime);
-
 router.get('/info', apiController.getAnimeAboutInfo);
 
 router.get('/genre', apiController.getGenreAnime);

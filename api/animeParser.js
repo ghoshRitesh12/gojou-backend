@@ -182,7 +182,14 @@ class Parser {
       spotlightAnimes: [],
       trendingAnimes: [],
       latestEpisodeAnimes: [],
-      topUpcomingAnimes: []
+      topUpcomingAnimes: [],
+      mostViewedAnime: {
+        today: [],
+        week: [],
+        month: [],
+      },
+      topAiringAnimes: [],
+      genres: [],
     }
 
     try {
@@ -231,51 +238,36 @@ class Parser {
       const topUpcomingSelector = '#main-content .block_area_home:nth-of-type(3) .tab-content .film_list-wrap .flw-item';
       res.topUpcomingAnimes = await this.extractAnimes($, topUpcomingSelector);
 
-      return res;
 
-    } catch (err) {
-      console.log(err.message);
-      throw createHttpError.InternalServerError(err.message);
-    }
-  }
+      const genreSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-genres .sb-genre-list li';
+      $(genreSelector).each((i, el) => res.genres.push(`${$(el).text().trim()}`))
 
 
-  /**
-   * @param {period} period of time  
-   */
-  static scrapeMostViewedAnime = async (period = "today") => {
-    try {
-      const res = {
-        period,
-        animes: []
-      }
+      const mostViewedSelector = '#main-sidebar .block_area-realtime [id^="top-viewed-"]';
+      $(mostViewedSelector).each(async (i, el) => {
+        const period = $(el).attr('id')?.split('-').pop().trim()
 
-      period = (period === "today") ? "day" : period;
+        if(period === 'day') {
+          res.mostViewedAnime.today = await this.extractMostViewed($, period);
+        } else if(period === 'week') {
+          res.mostViewedAnime.week = await this.extractMostViewed($, period);
+        } else {
+          res.mostViewedAnime.month = await this.extractMostViewed($, period);
+        }
+      })
 
-      const mainPage = await axios.get(this.home_url, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Accept': ACCEPT_HEADER
-        },
-      });
 
-      const $ = load(mainPage.data);
+      const topAiringSelector = '#anime-featured .row div:nth-of-type(1) .anif-block-ul ul li';
+      $(topAiringSelector).each((i, el) => {
+        const otherInfo = $(el).find('.fd-infor .fdi-item').map((i, el) => $(el).text().trim()).get()
 
-      const selector = `#top-viewed-${period} > ul > li`
-
-      $(selector).each((i, el) => {
-        const aboutPage = new URL($(el).find('.film-detail > h3 > a.dynamic-name').attr('href'), BASE_URL).toString();
-
-        res.animes.push({
-          id: aboutPage.split('/').pop(),
-          rank: $(el).find('.film-number span').text(),
-          name: $(el).find('.film-detail > h3 > a.dynamic-name').text(),
-          poster: $(el).find('.film-poster .film-poster-img').attr('data-src').replace('300x400', '800x800'),
-          aboutPage,
-          views: $(el).find('.film-detail > .fd-infor > .fdi-item.mr-3').text(),
-          hearts: $(el).find('.film-detail > .fd-infor > .fdi-item:nth-child(2)').text()
-        });
+        res.topAiringAnimes.push({
+          id: $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).trim(),
+          name: $(el).find('.film-detail .film-name .dynamic-name')?.attr('title').trim(),
+          jname: $(el).find('.film-detail .film-name .dynamic-name')?.attr('data-jname').trim(),
+          poster: $(el).find('.film-poster a .film-poster-img')?.attr('data-src')?.trim(),
+          otherInfo
+        })
       })
 
       return res;
@@ -634,6 +626,26 @@ class Parser {
     } catch (err) {
       throw createHttpError.InternalServerError(err.message);
     }
+  }
+
+
+  static extractMostViewed = async ($, period) => {
+    const result = [];
+    const selector = `#top-viewed-${period} ul li`
+
+    $(selector).each((i, el) => {
+
+      result.push({
+        id: $(el).find('.film-detail .dynamic-name')?.attr('href')?.slice(1).trim(),
+        rank: parseInt($(el).find('.film-number span')?.text()?.trim()),
+        name: $(el).find('.film-detail .dynamic-name')?.text()?.trim(),
+        poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+        views: $(el).find('.film-detail .fd-infor .fdi-item.mr-3').text(),
+        hearts: $(el).find('.film-detail .fd-infor .fdi-item:nth-child(2)').text()
+      });
+    })
+
+    return result;
   }
 
   // https://storage.googleapis.com/axxu-ppjxq-1651506793.appspot.com/8GLVM3JKPLDN/st25_5_deep-insanity-the-lost-child-episode-9-HD.mp4
