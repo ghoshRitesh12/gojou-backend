@@ -22,6 +22,12 @@ class Parser {
       currentPage: parseInt(page),
       category,
       animes: [],
+      genres: [],
+      mostViewedAnime: {
+        today: [],
+        week: [],
+        month: [],
+      },
       hasNextPage: false,
       totalPages: null
     }
@@ -62,6 +68,25 @@ class Parser {
         res.totalPages = null;
         res.hasNextPage = false;
       }
+
+
+      const genreSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-genres .sb-genre-list li';
+      $(genreSelector).each((i, el) => res.genres.push(`${$(el).text().trim()}`))
+
+      
+      const mostViewedSelector = '#main-sidebar .block_area-realtime [id^="top-viewed-"]';
+      $(mostViewedSelector).each(async (i, el) => {
+        const period = $(el).attr('id')?.split('-').pop().trim()
+
+        if(period === 'day') {
+          res.mostViewedAnime.today = await this.extractMostViewed($, period);
+        } else if(period === 'week') {
+          res.mostViewedAnime.week = await this.extractMostViewed($, period);
+        } else {
+          res.mostViewedAnime.month = await this.extractMostViewed($, period);
+        }
+      })
+
 
       return res;
 
@@ -413,13 +438,13 @@ class Parser {
       if (res.totalPages === null && !res.hasNextPage) res.totalPages = 1;
 
       $(selector).each((i, el) => {
-        const animeId = $(el).find('.film-detail > .film-name > a.dynamic-name').attr('href').slice(1).split('?')[0];
+        const animeId = $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).split('?')[0];
 
         res.animes.push({
           id: animeId,
-          name: $(el).find('.film-detail > .film-name > a.dynamic-name').text(),
+          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
           poster: $(el).find('.film-poster .film-poster-img').attr('data-src').trim(),
-          duration: $(el).find('.film-detail > div.fd-infor > span.fdi-item.fdi-duration').text(),
+          duration: $(el).find('.film-detail .fd-infor .fdi-item.fdi-duration').text(),
           aboutPage: new URL(animeId, BASE_URL).toString(),
           rating: $(el).find('.film-poster .tick-rate').text().trim() || null,
           episodes: $(el).find('.film-poster .tick-eps').text().trim().split(" ").pop() || null
@@ -637,7 +662,7 @@ class Parser {
 
       result.push({
         id: $(el).find('.film-detail .dynamic-name')?.attr('href')?.slice(1).trim(),
-        rank: parseInt($(el).find('.film-number span')?.text()?.trim()),
+        rank: $(el).find('.film-number span')?.text()?.trim(),
         name: $(el).find('.film-detail .dynamic-name')?.text()?.trim(),
         poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
         views: $(el).find('.film-detail .fd-infor .fdi-item.mr-3').text(),
