@@ -29,7 +29,7 @@ class Parser {
         month: [],
       },
       hasNextPage: false,
-      totalPages: null
+      totalPages: 0
     }
 
     try {
@@ -56,16 +56,18 @@ class Parser {
 
       res.totalPages = parseInt(
         $('.pagination > .page-item a[title="Last"]')?.attr('href')?.split("=").pop()
-        ??
+          ??
+        $('.pagination > .page-item a[title="Next"]')?.attr('href')?.split("=").pop()
+          ??
         $('.pagination > .page-item.active a')?.text()?.trim()
-      ) || null;
+      ) || 0;
 
       if (res.totalPages === null && !res.hasNextPage) res.totalPages = 1;
 
       res.animes = await this.extractAnimes($, selector);
 
       if (res.animes.length === 0) {
-        res.totalPages = null;
+        res.totalPages = 0;
         res.hasNextPage = false;
       }
 
@@ -132,6 +134,8 @@ class Parser {
 
       res.totalPages = parseInt(
         $('.pagination > .page-item a[title="Last"]')?.attr('href')?.split("=").pop()
+          ??
+        $('.pagination > .page-item a[title="Next"]')?.attr('href')?.split("=").pop()
           ??
         $('.pagination > .page-item.active a')?.text()?.trim()
       ) || 0;
@@ -408,7 +412,9 @@ class Parser {
       currentPage: parseInt(page),
       hasNextPage: false,
       animes: [],
-      totalPages: null
+      genres: [],
+      topAiringAnimes: [],
+      totalPages: 0
     }
 
     try {
@@ -425,36 +431,52 @@ class Parser {
 
       const selector = '#main-content .tab-content .film_list-wrap .flw-item'
 
-      res.hasNextPage = $('.pagination > li').length > 0 ?
-        $('.pagination li.active').length > 0 ? $('.pagination > li').last().hasClass('active') ? false : true : false
+      res.hasNextPage = 
+        $('.pagination > li').length > 0 ?
+          $('.pagination li.active').length > 0 ?
+            $('.pagination > li').last().hasClass('active') ? false : true
+          : false
         : false;
 
       res.totalPages = parseInt(
         $('.pagination > .page-item a[title="Last"]')?.attr('href')?.split("=").pop()
-        ??
+          ??
+        $('.pagination > .page-item a[title="Next"]')?.attr('href')?.split("=").pop()
+          ??
         $('.pagination > .page-item.active a')?.text()?.trim()
-      )
+      ) || 0;
 
-      if (res.totalPages === null && !res.hasNextPage) res.totalPages = 1;
+      console.log($('.pagination > .page-item a[title="Next"]')?.attr('href')?.split("=").pop())
 
-      $(selector).each((i, el) => {
-        const animeId = $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).split('?')[0];
+      if (res.totalPages === 0 && !res.hasNextPage) {
+        res.totalPages = 1
+        console.log('jackpot');
+      } 
 
-        res.animes.push({
-          id: animeId,
-          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
-          poster: $(el).find('.film-poster .film-poster-img').attr('data-src').trim(),
-          duration: $(el).find('.film-detail .fd-infor .fdi-item.fdi-duration').text(),
-          aboutPage: new URL(animeId, BASE_URL).toString(),
-          rating: $(el).find('.film-poster .tick-rate').text().trim() || null,
-          episodes: $(el).find('.film-poster .tick-eps').text().trim().split(" ").pop() || null
-        });
-      })
+      res.animes = await this.extractAnimes($, selector);
 
       if (res.animes.length === 0) {
-        res.totalPages = null;
+        res.totalPages = 0;
         res.hasNextPage = false;
       }
+
+
+      const genreSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-genres .sb-genre-list li';
+      $(genreSelector).each((i, el) => res.genres.push(`${$(el).text().trim()}`))
+
+
+      const topAiringSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-realtime .anif-block-ul ul li';
+      $(topAiringSelector).each((i, el) => {
+        const otherInfo = $(el).find('.fd-infor .fdi-item').map((i, el) => $(el).text().trim()).get()
+
+        res.topAiringAnimes.push({
+          id: $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).trim(),
+          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
+          jname: $(el).find('.film-detail .film-name .dynamic-name').attr('data-jname')?.trim(),
+          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+          otherInfo,
+        })
+      })
 
       return res;
 
