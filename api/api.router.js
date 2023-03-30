@@ -51,6 +51,8 @@ router.get('/quick-search', apiController.getAnimeQuickSearch);
 
 router.get('/info', apiController.getAnimeAboutInfo);
 
+router.get('/episodes', apiController.getAnimeEpisodes);
+
 router.get('/genre', apiController.getGenreAnime);
 
 router.get('/servers', apiController.getEpisodeServers);

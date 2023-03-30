@@ -19,15 +19,15 @@ class Parser {
    */
   static scrapeAnimeCategory = async (category, page = 1) => {
     const res = {
-      currentPage: parseInt(page),
       category,
       animes: [],
       genres: [],
-      mostViewedAnime: {
+      mostViewedAnimes: {
         today: [],
         week: [],
         month: [],
       },
+      currentPage: parseInt(page),
       hasNextPage: false,
       totalPages: 0
     }
@@ -81,11 +81,11 @@ class Parser {
         const period = $(el).attr('id')?.split('-').pop().trim()
 
         if(period === 'day') {
-          res.mostViewedAnime.today = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.today = await this.extractMostViewed($, period);
         } else if(period === 'week') {
-          res.mostViewedAnime.week = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.week = await this.extractMostViewed($, period);
         } else {
-          res.mostViewedAnime.month = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.month = await this.extractMostViewed($, period);
         }
       })
 
@@ -108,6 +108,7 @@ class Parser {
       currentPage: parseInt(page),
       hasNextPage: false,
       animes: [],
+      mostPopularAnimes: [],
       totalPages: 0
     }
 
@@ -149,6 +150,10 @@ class Parser {
         res.hasNextPage = false;
       }
 
+
+      const mostPopularSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-realtime .anif-block-ul ul li';
+      res.mostPopularAnimes = await this.extractMostPopular($, mostPopularSelector);
+
       return res;
 
     } catch (err) {
@@ -181,13 +186,18 @@ class Parser {
       const selector = '.nav-item:not(.nav-bottom)'
 
       $(selector).each((i, el) => {
+        const id = 
+          $(el).attr('href')?.split('?')[0].includes('javascript')
+            ? 
+          null : $(el).attr('href')?.split('?')[0]?.slice(1);
+
         res.animes.push({
-          id: $(el).attr('href')?.split('?')[0].slice(1),
-          name: $(el).find('.srp-detail .film-name')?.text()?.trim(),
+          id,
+          name: $(el).find('.srp-detail .film-name')?.text()?.trim() || 'No results found!',
           jname: 
             $(el).find('.srp-detail .film-name')?.attr('data-jname')?.trim()
               || 
-            $(el).find('.srp-detail .alias-name')?.text()?.trim(),
+            $(el).find('.srp-detail .alias-name')?.text()?.trim() || null,
           poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
           moreInfo: [...$(el).find('.film-infor').contents().map((i, el) => $(el).text().trim())].filter(i => i)
         });
@@ -312,10 +322,15 @@ class Parser {
    * @param {id} anime id
    */
   static scrapeAnimeAboutInfo = async (id) => {
-    const info = {
-      episodes: [],
-      moreInfo: {},
-      seasons: []
+    const res = {
+      anime: {
+        info: {},
+        moreInfo: {},
+      },
+      seasons: [],
+      mostPopularAnimes: [],
+      relatedAnimes: [],
+      recommendedAnimes: []
     };
 
     try {
@@ -332,30 +347,36 @@ class Parser {
       const $ = load(mainPage.data);
       const selector = `#ani_detail .container .anis-content`
 
-      info.id = $(selector).find('.anisc-detail .film-buttons a.btn-play').attr('href')?.split('/').pop();
-      info.name = $(selector).find('.anisc-detail .film-name.dynamic-name').text()?.trim();
-      info.description = $(selector).find('.anisc-detail .film-description .text').text()?.split('[').shift().trim();
-      info.poster = $(selector).find('.film-poster .film-poster-img').attr('src')?.trim();
-      info.stats = await (async () => {
-        const all_stats = [];
-        $(`${selector} .anisc-detail .film-stats > .item`).each((i, el) => {
-          all_stats.push($(el).find('.tick-item').text())
-        })
-        return all_stats.filter(item => item);
-      })();
+      res.anime.info.id = $(selector).find('.anisc-detail .film-buttons a.btn-play').attr('href')?.split('/').pop();
+      res.anime.info.name = $(selector).find('.anisc-detail .film-name.dynamic-name').text()?.trim();
+      res.anime.info.description = $(selector).find('.anisc-detail .film-description .text').text()?.split('[').shift().trim();
+      res.anime.info.poster = $(selector).find('.film-poster .film-poster-img').attr('src')?.trim();
+      res.anime.info.stats = $(
+        `${selector} .anisc-detail .film-stats .item:not(:has(.tick-item))`
+      ).map((i, el) => $(el).text().trim()).get()
+
 
       // more information
-      $(`${selector} .anisc-info-wrap .anisc-info .item.item-title:not(.w-hide)`).each((i, el) => {
+      $(`${selector} .anisc-info-wrap .anisc-info .item:not(.w-hide)`).each((i, el) => {
         let key = $(el).find('.item-head').text().toLowerCase().replace(':', '').trim();
         key = key.includes(' ') ? key.replace(' ', '') : key;
-        const value = $(el).find('.name').text();
-        info.moreInfo[key] = value;
+
+        const value = 
+          [...$(el).find('*:not(.item-head)').map((i, el) => $(el).text().trim())]
+          .map(i => ` ${i}`).toString().trim();
+
+        if(key === 'genres') {
+          res.anime.moreInfo[key] = value.split(',').map(i => i.trim())
+          return;
+        }
+        res.anime.moreInfo[key] = value;
       })
+
 
       // more seasons
       const seasonsSelector = '#main-content .os-list a.os-item';
       $(seasonsSelector).each((i, el) => {
-        info.seasons.push({
+        res.seasons.push({
           isCurrent: $(el).hasClass('active'),
           id: $(el).attr('href').slice(1).trim(),
           name: $(el).attr('title').trim(),
@@ -365,42 +386,71 @@ class Parser {
       })
 
 
-      // episodes
-      const episodesAjax = await axios.get(`${ajax_url}/v2/episode/list/${info.id.split('-').pop()}`, {
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'User-Agent': USER_AGENT,
-          Referer: new URL(`/watch/${info.id}`, BASE_URL).toString()
-        }
-      });
+      const relatedAnimeSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-realtime:nth-of-type(1) .anif-block-ul ul li';
+      res.relatedAnimes = await this.extractMostPopular($, relatedAnimeSelector);
 
-      const $$ = load(episodesAjax.data.html);
+      const mostPopularSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-realtime:nth-of-type(2) .anif-block-ul ul li';
+      res.mostPopularAnimes = await this.extractMostPopular($, mostPopularSelector);
 
-      info.totalEpisodes = $$('.detail-infor-content .ss-list a').length;
-      $$('.detail-infor-content .ss-list a').each((i, el) => {
-        const episodeId = $$(el).attr('href')?.split('/').pop();
-        const number = parseInt($$(el).attr('data-number'));
-        const title = $$(el).attr('title');
-        const url = new URL($$(el).attr('href'), BASE_URL).toString()
-        const isFiller = $$(el).hasClass('ssl-item-filler');
-
-        info.episodes?.push({
-          id: episodeId,
-          number: number,
-          title: title,
-          isFiller: isFiller,
-          url: url,
-        });
-      });
+      const recommendedAnimeSelector = '#main-content .block_area.block_area_category .tab-content .flw-item';
+      res.recommendedAnimes = await this.extractAnimes($, recommendedAnimeSelector)
 
 
-      return info;
+      return res;
 
     } catch (err) {
       console.log(err);
       throw createHttpError.InternalServerError(err.message);
     }
   }
+
+
+  /**
+   * @param {id} anime id
+   */
+  static scrapeAnimeEpisodes = async (id) => {
+    const res = {
+      totalEpisodes: 0,
+      episodes: []
+    }
+
+    try {      
+      const episodesAjax = await axios.get(`${ajax_url}/v2/episode/list/${id.split('-').pop()}`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'User-Agent': USER_AGENT,
+          Referer: new URL(`/watch/${id}`, BASE_URL).toString()
+        }
+      });
+
+      const $ = load(episodesAjax.data.html);
+
+      res.totalEpisodes = $('.detail-infor-content .ss-list a').length;
+
+      $('.detail-infor-content .ss-list a').each((i, el) => {
+        const episodeId = $(el).attr('href')?.split('/').pop();
+        const number = parseInt($(el).attr('data-number'));
+        const title = $(el).attr('title')?.trim();
+        const url = new URL($(el).attr('href'), BASE_URL).toString()
+        const isFiller = $(el).hasClass('ssl-item-filler');
+
+        res.episodes.push({
+          id: episodeId,
+          number: number,
+          title: title,
+          isFiller,
+          url,
+        });
+      });
+
+      return res;
+
+    } catch (error) {
+      console.log(err);
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
 
 
   /**
@@ -416,6 +466,8 @@ class Parser {
       topAiringAnimes: [],
       totalPages: 0
     }
+
+    genreName = (genreName === 'martial-arts') ? 'marial-arts' : genreName
 
     try {
       const mainPage = await axios.get(
@@ -677,22 +729,49 @@ class Parser {
 
 
   static extractMostViewed = async ($, period) => {
-    const result = [];
-    const selector = `#top-viewed-${period} ul li`
+    try {
+      const result = [];
+      const selector = `#top-viewed-${period} ul li`
 
-    $(selector).each((i, el) => {
+      $(selector).each((i, el) => {
 
-      result.push({
-        id: $(el).find('.film-detail .dynamic-name')?.attr('href')?.slice(1).trim(),
-        rank: $(el).find('.film-number span')?.text()?.trim(),
-        name: $(el).find('.film-detail .dynamic-name')?.text()?.trim(),
-        poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
-        views: $(el).find('.film-detail .fd-infor .fdi-item.mr-3').text(),
-        hearts: $(el).find('.film-detail .fd-infor .fdi-item:nth-child(2)').text()
-      });
-    })
+        result.push({
+          id: $(el).find('.film-detail .dynamic-name')?.attr('href')?.slice(1).trim(),
+          rank: $(el).find('.film-number span')?.text()?.trim(),
+          name: $(el).find('.film-detail .dynamic-name')?.text()?.trim(),
+          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+          views: $(el).find('.film-detail .fd-infor .fdi-item.mr-3').text(),
+          hearts: $(el).find('.film-detail .fd-infor .fdi-item:nth-child(2)').text()
+        });
+      })
 
-    return result;
+      return result;
+    } catch (err) {
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
+  static extractMostPopular = async ($, selector) => {
+    try {
+      const res = [];
+
+      $(selector).each((i, el) => {
+        const otherInfo = $(el).find('.fd-infor .fdi-item').map((i, el) => $(el).text().trim()).get()
+
+        res.push({
+          id: $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).trim(),
+          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
+          jname: $(el).find('.film-detail .film-name .dynamic-name').attr('data-jname')?.trim(),
+          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
+          otherInfo,
+        })
+      })
+
+      return res;
+
+    } catch (err) {
+      throw createHttpError.InternalServerError(err.message);
+    }
   }
 
   // https://storage.googleapis.com/axxu-ppjxq-1651506793.appspot.com/8GLVM3JKPLDN/st25_5_deep-insanity-the-lost-child-episode-9-HD.mp4

@@ -94,6 +94,24 @@ const getAnimeAboutInfo = async (req, res, next) => {
 }
 
 
+// /episodes?id=steinsgate-3
+const getAnimeEpisodes = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.scrapeAnimeEpisodes(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
 // /genre?name=shounen
 const getGenreAnime = async (req, res, next) => {
   try {
@@ -161,5 +179,5 @@ const getEpisodeSources = async(req, res, next) => {
 export default { 
   getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
   getAnimeAboutInfo, getGenreAnime, getHomePage,
-  getEpisodeSources, getEpisodeServers
+  getEpisodeSources, getEpisodeServers, getAnimeEpisodes
 }
