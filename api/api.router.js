@@ -55,9 +55,13 @@ router.get('/episodes', apiController.getAnimeEpisodes);
 
 router.get('/genre', apiController.getGenreAnime);
 
+router.get('/info-room', apiController.getRoomAnimeInfo);
+
 router.get('/servers', apiController.getEpisodeServers);
 
-router.get('/watch', apiController.getEpisodeSources);
+router.get('/watch-episode', apiController.getEpisodeSources);
+
+router.get('/explore/:category', apiController.getAnimeExploreCategory);
 
 router.get('/:category', apiController.getAnimeCategory);
 

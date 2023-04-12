@@ -3,6 +3,7 @@ import createHttpError from 'http-errors';
 import Parser from './animeParser.js';
 import { Servers, animeCategories, animeGenres } from './helpers/utils.js';
 
+import redisClient from '../config/initRedis.js';
 
 
 const getAnimeCategory = async (req, res, next) => {
@@ -16,6 +17,25 @@ const getAnimeCategory = async (req, res, next) => {
       throw createHttpError.NotFound('searched parameter not present') 
 
     const data = await Parser.scrapeAnimeCategory(category, page);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+// /explore/:ova
+const getAnimeExploreCategory = async (req, res, next) => {
+  try {
+    const category = decodeURIComponent(req.params.category);
+
+    if(!category) throw createHttpError.BadRequest('category required') 
+
+    if(!animeCategories.includes(category)) 
+      throw createHttpError.NotFound('searched parameter not present') 
+
+    const data = await Parser.scrapeAnimeExploreCategory(category)
     
     res.status(200).json(data);
     
@@ -65,7 +85,14 @@ const getAnimeQuickSearch = async (req, res, next) => {
 // /home
 const getHomePage = async (req, res, next) => {
   try {
+    if(await redisClient.exists('home')) {
+      const data = await redisClient.get('home');
+      return res.status(200).json(JSON.parse(data));
+    }
+
     const data = await Parser.scrapeHomePage();
+
+    await redisClient.set('home', JSON.stringify(data));
     
     res.status(200).json(data);
     
@@ -135,6 +162,24 @@ const getGenreAnime = async (req, res, next) => {
 }
 
 
+// /info-room?id=attack-on-titan-112
+const getRoomAnimeInfo = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.fetchRoomAnimeInfo(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
 // /servers?episodeId=steinsgate-0-92?ep=2051
 const getEpisodeServers = async(req, res, next) => {
   try {
@@ -153,8 +198,8 @@ const getEpisodeServers = async(req, res, next) => {
 }
 
 
-// /watch?episodeId=steinsgate-3?ep=230
-const getEpisodeSources = async(req, res, next) => {
+// /watch-episode?episodeId=steinsgate-3?ep=230
+const getEpisodeSources = async (req, res, next) => {
   try {
     const episodeId = req.query.episodeId ? decodeURIComponent(req.query.episodeId) : null;
     const server = req.query.server ? decodeURIComponent(req.query.server) : Servers.VidStreaming;
@@ -163,7 +208,19 @@ const getEpisodeSources = async(req, res, next) => {
     if(episodeId === null) 
       throw createHttpError.BadRequest('episode id required');
 
+    if(await redisClient.exists(server)) {
+
+      const data = await redisClient.get(server);
+
+      return res.status(200).json({
+        subOrDub,
+        episode: JSON.parse(data)
+      });
+    }
+
     const data = await Parser.fetchEpisodeSources(episodeId, server, subOrDub);
+
+    await redisClient.set(server, JSON.stringify(data));
 
     res.status(200).json({
       subOrDub,
@@ -176,8 +233,48 @@ const getEpisodeSources = async(req, res, next) => {
 }
 
 
+// /watch/:animeId
+const watchAnime = async (req, res, next) => {
+  try {
+    const info = {
+      episodeInfo: {},
+      aboutAnime: {},
+      stream: {},
+      servers: {}
+    }
+
+    const { animeId } = req.params;
+    if(!animeId) throw createHttpError.BadRequest('animeId required');
+
+
+    const [ episodeInfo, animeInfo ] = await Promise.allSettled([
+      Parser.scrapeAnimeEpisodes(animeId),
+      Parser.scrapeAnimeAboutInfo(animeId)
+    ])
+    
+    const firstEpisodeId = episodeInfo.value.episodes[0].id;
+
+    const [ serversInfo, streamInfo ] = await Promise.allSettled([
+      Parser.fetchEpisodeServers(firstEpisodeId),
+      Parser.fetchEpisodeSources(firstEpisodeId),
+    ])
+
+    info.episodeInfo = episodeInfo.value;
+    info.aboutAnime = animeInfo.value;
+    info.stream = streamInfo.value;
+    info.servers = serversInfo.value;
+        
+
+    res.json(info)
+
+  } catch (err) {
+    next(err);
+  }
+}
+
 export default { 
   getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
   getAnimeAboutInfo, getGenreAnime, getHomePage,
-  getEpisodeSources, getEpisodeServers, getAnimeEpisodes
+  getEpisodeSources, getEpisodeServers, getAnimeEpisodes,
+  watchAnime, getRoomAnimeInfo, getAnimeExploreCategory
 }

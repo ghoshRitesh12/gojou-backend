@@ -19,7 +19,6 @@ class Parser {
    */
   static scrapeAnimeCategory = async (category, page = 1) => {
     const res = {
-      category,
       animes: [],
       genres: [],
       mostViewedAnimes: {
@@ -27,6 +26,7 @@ class Parser {
         week: [],
         month: [],
       },
+      category,
       currentPage: parseInt(page),
       hasNextPage: false,
       totalPages: 0
@@ -101,14 +101,49 @@ class Parser {
 
   /**
    * @param {page} page number  
+   * @param {category} name of scraped page  
+   */
+  static scrapeAnimeExploreCategory = async (category) => {
+    const res = {
+      animes: [],
+      category
+    }
+
+    try {
+      const scrape_url = new URL(category, BASE_URL);
+
+      const mainPage = await axios.get(scrape_url, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept': ACCEPT_HEADER
+        },
+      });
+
+      const $ = load(mainPage.data);
+      const selector = '#main-content .tab-content .film_list-wrap .flw-item';
+
+      res.animes = await this.extractAnimes($, selector);
+
+      return res;
+
+    } catch (err) {
+      console.log(err.message);
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
+
+  /**
+   * @param {page} page number  
    * @param {q} search query  
    */
   static scrapeAnimeSearch = async (q, page = 1) => {
     const res = {
-      currentPage: parseInt(page),
-      hasNextPage: false,
       animes: [],
       mostPopularAnimes: [],
+      currentPage: parseInt(page),
+      hasNextPage: false,
       totalPages: 0
     }
 
@@ -222,7 +257,7 @@ class Parser {
       trendingAnimes: [],
       latestEpisodeAnimes: [],
       topUpcomingAnimes: [],
-      mostViewedAnime: {
+      mostViewedAnimes: {
         today: [],
         week: [],
         month: [],
@@ -287,11 +322,11 @@ class Parser {
         const period = $(el).attr('id')?.split('-').pop().trim()
 
         if(period === 'day') {
-          res.mostViewedAnime.today = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.today = await this.extractMostViewed($, period);
         } else if(period === 'week') {
-          res.mostViewedAnime.week = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.week = await this.extractMostViewed($, period);
         } else {
-          res.mostViewedAnime.month = await this.extractMostViewed($, period);
+          res.mostViewedAnimes.month = await this.extractMostViewed($, period);
         }
       })
 
@@ -431,7 +466,6 @@ class Parser {
         const episodeId = $(el).attr('href')?.split('/').pop();
         const number = parseInt($(el).attr('data-number'));
         const title = $(el).attr('title')?.trim();
-        const url = new URL($(el).attr('href'), BASE_URL).toString()
         const isFiller = $(el).hasClass('ssl-item-filler');
 
         res.episodes.push({
@@ -439,7 +473,6 @@ class Parser {
           number: number,
           title: title,
           isFiller,
-          url,
         });
       });
 
@@ -459,10 +492,10 @@ class Parser {
   static scrapeAnimeGenre = async (genreName, page = 1) => {
     const res = {
       genreName,
-      currentPage: parseInt(page),
-      hasNextPage: false,
       animes: [],
       genres: [],
+      currentPage: parseInt(page),
+      hasNextPage: false,
       topAiringAnimes: [],
       totalPages: 0
     }
@@ -540,15 +573,69 @@ class Parser {
 
 
   /**
+   * @param {id} anime id
+   */
+  static fetchRoomAnimeInfo = async (id) => {
+    const res = {
+      info: {},
+      seasons: [],
+    };
+
+    try {
+      const anime_url = new URL(id, BASE_URL).toString();
+
+      const mainPage = await axios.get(anime_url, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept': ACCEPT_HEADER
+        },
+      });
+
+      const $ = load(mainPage.data);
+      const selector = `#ani_detail .container .anis-content`
+
+      res.info.id = $(selector).find('.anisc-detail .film-buttons a.btn-play').attr('href')?.split('/').pop();
+      res.info.name = $(selector).find('.anisc-detail .film-name.dynamic-name').text()?.trim();
+      res.info.description = $(selector).find('.anisc-detail .film-description .text').text()?.split('[').shift().trim();
+      res.info.poster = $(selector).find('.film-poster .film-poster-img').attr('src')?.trim();
+      res.info.stats = $(
+        `${selector} .anisc-detail .film-stats .item:not(:has(.tick-item))`
+      ).map((i, el) => $(el).text().trim()).get()
+
+      
+      // more seasons
+      const seasonsSelector = '#main-content .os-list a.os-item';
+      $(seasonsSelector).each((i, el) => {
+        res.seasons.push({
+          isCurrent: $(el).hasClass('active'),
+          id: $(el).attr('href').slice(1).trim(),
+          name: $(el).attr('title').trim(),
+          title: $(el).find('.title').text().trim(),
+          poster: $(el).find('.season-poster')?.attr('style')?.split(" ").pop().split('(').pop().split(')')[0]
+        })
+      })
+
+
+      return res;
+
+    } catch (err) {
+      console.log(err);
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
+
+  /**
    * @param {episodeId} episode id (eg: steinsgate-0-92?ep=2051)
    */
   static fetchEpisodeServers = async (episodeId) => {
     const res = {
-      sub: [], dub: [],
+      sub: [], 
+      dub: [],
+      episodeNo: 0,
       episodeId
     }
-
-    console.log(episodeId);
 
     try {
       const epId = episodeId.split('?ep=')[1];
@@ -563,6 +650,9 @@ class Parser {
       });
       
       const $ = load(data.html);
+
+      const epNoSelector = '.server-notice strong';
+      res.episodeNo = parseInt($(epNoSelector).text().split(' ').pop())
 
       $(`.ps_-block.ps_-block-sub.servers-sub .ps__-list .server-item`).each((i, el) => {
         res.sub.push({
@@ -605,8 +695,12 @@ class Parser {
           };
         case Servers.StreamSB:
           return {
-            headers: { Referer: serverUrl.href, watchsb: 'sbstream', 'User-Agent': USER_AGENT },
-            sources: await new StreamSB().extract(serverUrl, true),
+            headers: { 
+              Referer: serverUrl.href?.split('.html')[0]?.replace('watchsb.com', 'streamsss.net'), 
+              watchsb: 'sbstream',
+              // 'User-Agent': USER_AGENT 
+            },
+            // sources: await new StreamSB().extract(serverUrl, true),
           };
         case Servers.StreamTape:
           return {
