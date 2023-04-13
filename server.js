@@ -5,9 +5,11 @@ import cors from 'cors';
 import createHttpError from 'http-errors';
 import passport from 'passport';
 import session from 'express-session';
+import https from 'https';
 
 import CryptoJS from 'crypto-js';
 
+import connectDB from './config/connectDB.js';
 import corsOptions from './config/corsOptions.js';
 import redisClient from './config/initRedis.js';
 
@@ -42,23 +44,20 @@ app.use(passport.session());
 
 
 (async () => {
-  // db connection
+  await connectDB(process.env.DATABASE_CONNECTION_URI);
   // await redisClient.connect();
 
   app.get('/', (req, res) => {
-    console.log(crypto);
     res.send('anime-watch-party HOME ROUTE');
   })
 
-
+  app.get('/inactive', (req, res) => res.sendStatus(200));
   app.use('/signup', signupRouter);
   app.use('/login', loginRouter);
   app.use('/google-auth', googleAuthRouter);
 
   app.use('/logout', logoutRouter);
   app.use('/api/v1', cors(corsOptions), apiRouter);
-
-
 
 
 
@@ -73,7 +72,14 @@ app.use(passport.session());
   })
 
   
-  app.listen(PORT, () => console.log(`🚀 @ http://localhost:${PORT}`));
+  app.listen(PORT, () => (
+    console.log(`🚀 @ http://localhost:${PORT}`)
+  ));
+
+  setInterval(
+    () => https.get('http:/localhost:5000/inactive'), 
+    8 * 60 * 1000
+  )
 
 })();
 
