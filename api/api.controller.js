@@ -28,6 +28,7 @@ const getAnimeCategory = async (req, res, next) => {
 // /explore/:ova
 const getAnimeExploreCategory = async (req, res, next) => {
   try {
+
     const category = decodeURIComponent(req.params.category);
 
     if(!category) throw createHttpError.BadRequest('category required') 
@@ -228,53 +229,16 @@ const getEpisodeSources = async (req, res, next) => {
     });
     
   } catch (err) {
+    console.log(err.message);
     next(err);
   }
 }
 
 
-// /watch/:animeId
-const watchAnime = async (req, res, next) => {
-  try {
-    const info = {
-      episodeInfo: {},
-      aboutAnime: {},
-      stream: {},
-      servers: {}
-    }
-
-    const { animeId } = req.params;
-    if(!animeId) throw createHttpError.BadRequest('animeId required');
-
-
-    const [ episodeInfo, animeInfo ] = await Promise.allSettled([
-      Parser.scrapeAnimeEpisodes(animeId),
-      Parser.scrapeAnimeAboutInfo(animeId)
-    ])
-    
-    const firstEpisodeId = episodeInfo.value.episodes[0].id;
-
-    const [ serversInfo, streamInfo ] = await Promise.allSettled([
-      Parser.fetchEpisodeServers(firstEpisodeId),
-      Parser.fetchEpisodeSources(firstEpisodeId),
-    ])
-
-    info.episodeInfo = episodeInfo.value;
-    info.aboutAnime = animeInfo.value;
-    info.stream = streamInfo.value;
-    info.servers = serversInfo.value;
-        
-
-    res.json(info)
-
-  } catch (err) {
-    next(err);
-  }
-}
 
 export default { 
   getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
   getAnimeAboutInfo, getGenreAnime, getHomePage,
   getEpisodeSources, getEpisodeServers, getAnimeEpisodes,
-  watchAnime, getRoomAnimeInfo, getAnimeExploreCategory
+  getRoomAnimeInfo, getAnimeExploreCategory
 }

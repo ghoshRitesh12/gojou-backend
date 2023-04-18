@@ -1,9 +1,9 @@
-import express from 'express';
+import { Router } from 'express';
 
-const router = express.Router();
+const router = Router();
 import { handleSignup } from '../controllers/singupController.js';
 
-router.get('/', handleSignup)
+router.post('/', handleSignup)
 
 
 export default router;

@@ -1,8 +1,10 @@
-const origin = '*';
+const allOrigins = [
+  'http://localhost:3000', 'https://gojou.vercel.app'
+];
 
 const corsOptions = {
-  origin, 
-  credentails: true,
+  origin: allOrigins, 
+  credentials: true,
   optionSuccessStatus: 200,
 }
 

@@ -1,7 +1,7 @@
-import express from 'express';
+import { Router } from 'express';
 import passport from 'passport';
 
-const router = express.Router();
+const router = Router();
 import { handleGoogleAuth, handleGoogleAuthCallback } from '../controllers/googleAuthController.js';
 
 router.get('/', 
@@ -13,7 +13,8 @@ router.get('/',
 
 router.get('/callback',
   passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:3000/auth-failed' 
+    failureRedirect: `${process.env.FRONTEND_BASE_URL}/auth-redirect?data=error`,
+    session: false
   }),
   handleGoogleAuthCallback
 )

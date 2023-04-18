@@ -54,6 +54,7 @@ class RapidCloud {
           sources = JSON.parse(decrypt.toString(CryptoJS.enc.Utf8));
         }
       } catch (err) {
+        console.log(err.message);
         throw createHttpError.InternalServerError('Cannot decrypt sources. Perhaps the key is invalid.');
       }
 

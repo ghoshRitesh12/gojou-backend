@@ -7,12 +7,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    unique: true,
+    match: [/\S+@\S+\.\S+/, 'is invalid'],
+    index: true,
   },
   avatar: {
     type: String,
     required: true,
     trim: true,
   },
+  isPrivate: {
+    type: Boolean,
+    default: false
+  },
+  admin: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
+  mods: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
   animeId: {
     type: String,
     default: null
@@ -33,11 +43,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  admin: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
-  mods: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
-  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
   
-
+  
 }, { collection: collectionName })
 
 const model = mongoose.model(collectionName, userSchema)
