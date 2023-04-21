@@ -1,9 +1,8 @@
 import { Router } from 'express';
-
-const router = Router();
 import { handleLogout } from '../controllers/logoutController.js';
 
-router.get('/', handleLogout)
+const router = Router();
 
+router.get('/', handleLogout)
 
 export default router;

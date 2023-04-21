@@ -2,80 +2,66 @@ import passport from "passport";
 import createHttpError from "http-errors";
 import { verifyJwt } from "../config/jwt.js";
 
-const token = {
-  refreshTokenId: null
-}
 
 export function checkAuth(req, res, next) {
   try {
+    req.user = null;
+
     const refreshToken = req.cookies?.refresh_token;
     if(!refreshToken)
       throw createHttpError.Unauthorized();
 
     passport.authenticate(
-      'jwt', 
+      'access-jwt', 
       { session: false }, 
-      async (err, accessDecoded) => {
-        if(err || !accessDecoded) 
-          throw createHttpError.InternalServerError(err);
-        
+      async (err, accessDecoded, info) => {
+        try {
+          if(err) throw err;
+          if(info) throw info;
 
-        const refreshDecoded = await verifyJwt(
-          refreshToken,
-          process.env.REFRESH_TOKEN_SECRET
-        );
+          const refreshDecoded = await verifyJwt(
+            refreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+          );
+          
 
-        if(accessDecoded.id !== refreshDecoded.id) 
-          throw createHttpError.Unauthorized();
-        
-        next();
+          console.log('middleware');
+          
+          if(accessDecoded.id !== refreshDecoded.id) 
+            throw new Error('forbidden');
+
+          console.log('middleware working');
+
+          req.user = {
+            id: accessDecoded.id,
+            email: accessDecoded.email
+          }
+          next(); 
+
+        } catch (err) {
+          console.table(err);
+
+          if(err.message === 'forbidden') {
+            next(createHttpError.Forbidden());
+            return;
+          }
+
+          if(err.message.includes('token')) {
+            next(createHttpError.Unauthorized());
+            return;
+          }
+
+          next(createHttpError.Unauthorized(
+            err.message.replace('jwt', 'session')
+          ))
+
+        }
       }
-    )(req, res)
+    )(req, res, next)
     
   } catch (err) {
     console.log(err.message);
-    // next(createHttpError.InternalServerError(err.message));
     next(err);
   }
 }
 
-
-// export function checkAuth(req, res, next) {
-//   try {
-//     const refreshToken = req.cookies?.refresh_token;
-//     if(!refreshToken)
-//       throw createHttpError.Unauthorized();
-
-//     passport.authenticate(
-//       'refresh', 
-//       { session: false }, 
-//       async (err, refreshDecoded) => {
-//         if(err || !refreshDecoded)
-//           throw createHttpError.InternalServerError(err.message);
-
-//         token.refreshTokenId = refreshDecoded.id;
-//         // next();
-//       }
-//     )(req, res)
-
-//     passport.authenticate(
-//       'access', 
-//       { session: false }, 
-//       async (err, accessDecoded) => {
-//         if(err || !accessDecoded)
-//           throw createHttpError.InternalServerError(err.message);
-
-
-//         if(accessDecoded.id !== token.refreshTokenId) 
-//           throw createHttpError.Unauthorized();
-        
-//         next();
-//       }
-//     )(req, res)
-    
-//   } catch (err) {
-//     console.log(err);
-//     // next(createHttpError.InternalServerError(err.message));
-//     next(err);
-//   }
-// }

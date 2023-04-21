@@ -1,7 +1,7 @@
 {
   "name": "anime-room-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Create a room & watch anime with your friends",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -9,8 +9,12 @@
     "dev": "nodemon server.js"
   },
   "keywords": [
-    "anime", "streaming",  "anime streaming",
-    "room", "room chat", "anime room"
+    "anime",
+    "streaming",
+    "anime streaming",
+    "room",
+    "room chat",
+    "anime room"
   ],
   "author": "Ritesh Ghosh",
   "license": "MIT",
@@ -22,7 +26,6 @@
     "crypto-js": "^4.1.1",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "express-session": "^1.17.3",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^6.8.4",

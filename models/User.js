@@ -55,7 +55,7 @@ userSchema.methods.generateRefreshJwt = async function () {
   return await signJwt(
     { id: this._id, email: this.email },
     process.env.REFRESH_TOKEN_SECRET,
-    '30d'
+    '20d'
   ) 
 }
 

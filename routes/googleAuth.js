@@ -1,22 +1,24 @@
 import { Router } from 'express';
 import passport from 'passport';
+import { handleGoogleAuthCallback } from '../controllers/googleAuthController.js';
 
 const router = Router();
-import { handleGoogleAuth, handleGoogleAuthCallback } from '../controllers/googleAuthController.js';
 
-router.get('/', 
-  passport.authenticate('google', { 
+router.get('/', passport.authenticate('google', { 
     scope: ['email', 'profile'] 
-  }),
-  handleGoogleAuth
+  })
 )
 
-router.get('/callback',
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.FRONTEND_BASE_URL}/auth-redirect?data=error`,
-    session: false
-  }),
+router.get('/callback', 
+  passport.authenticate(
+    'google', 
+    { 
+      failureRedirect: `${process.env.FRONTEND_BASE_URL}/auth-redirect?status=400`,
+      session: false
+    }
+  ), 
   handleGoogleAuthCallback
 )
+
 
 export default router;

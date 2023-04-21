@@ -1,9 +1,9 @@
 import { Router } from 'express';
+import { handleLogin } from '../controllers/loginController.js';
+import alreadyLoggedIn from '../middlewares/alreadyLoggedIn.js';
 
 const router = Router();
-import { handleLogin } from '../controllers/loginController.js';
 
-router.post('/', handleLogin)
-
+router.post('/', alreadyLoggedIn, handleLogin)
 
 export default router;

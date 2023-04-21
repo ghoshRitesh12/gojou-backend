@@ -10,17 +10,20 @@ export const handleLogin = async (req, res, next) => {
       { session: false },
       async (err, user, info) => {
         try {
-          if(err) throw createHttpError.InternalServerError(err);
-          if(info) throw createHttpError.InternalServerError(info.message);
+          if(err) throw err; 
+          if(info) throw info;
 
           const refreshToken = await user.generateRefreshJwt();
           const accessToken = await user.generateAccessJwt();
+          const stateExpiry = 20 * 24 * 60 * 60 * 1000;
+          const sessionExpiry = 20 * 1000;
 
           const userData = await encryptState(
             {
               name: user?.name,
               email: user?.email,
-              profilePicture: user?.profilePicture
+              profilePicture: user?.profilePicture,
+              stateExpiry, sessionExpiry
             },
             process.env.FRONTEND_STATE_SECRET
           )
@@ -29,24 +32,29 @@ export const handleLogin = async (req, res, next) => {
             'refresh_token',
             refreshToken,
             { 
-              httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, 
-              secure: true,
+              httpOnly: true, secure: true,
+              maxAge: stateExpiry,
             }
           )
           res.cookie(
             'access_token',
             accessToken,
-            { httpOnly: true, maxAge: 30 * 60 * 1000, secure: true }
+            { 
+              httpOnly: true, secure: true,
+              maxAge: 30 * 60 * 1000
+            }
           )
       
           res.status(200).json({
-            userData,
-            message: 'Welcome back to Gojou'
+            message: 'Welcome back to Gojou 🤘🏻',
+            userData
           });
 
         } catch (err) {
-          console.log(err);
-          next(err);
+          console.table(err);
+          next(createHttpError.Unauthorized(
+            err.message.replace('username', 'email')
+          ));
         }
       }
     )(req, res, next)

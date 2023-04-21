@@ -24,13 +24,15 @@ export const handleSignup = async (req, res, next) => {
 
             const refreshToken = await user.generateRefreshJwt();
             const accessToken = await user.generateAccessJwt();
-  
+            const stateExpiry = 20 * 24 * 60 * 60 * 1000;
+            const sessionExpiry = 25 * 60 * 1000;
   
             const userData = await encryptState(
               {
                 name: user?.name,
                 email: user?.email,
-                profilePicture: user?.profilePicture
+                profilePicture: user?.profilePicture,
+                stateExpiry, sessionExpiry
               },
               process.env.FRONTEND_STATE_SECRET
             )
@@ -39,19 +41,22 @@ export const handleSignup = async (req, res, next) => {
               'refresh_token',
               refreshToken,
               { 
-                httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, 
-                secure: true,
+                httpOnly: true, secure: true,
+                maxAge: stateExpiry, 
               }
             )
             res.cookie(
               'access_token',
               accessToken,
-              { httpOnly: true, maxAge: 30 * 60 * 1000, secure: true }
+              { 
+                httpOnly: true, secure: true,
+                maxAge: 30 * 60 * 1000, 
+              }
             )
         
             res.status(201).json({
-              userData,
-              message: 'Hi there, welcome to Gojou'
+              message: 'Hi there, Welcome to Gojou 🎉',
+              userData
             });
 
           } catch (err) {
@@ -62,7 +67,23 @@ export const handleSignup = async (req, res, next) => {
       )(req, res, next)
 
     }).catch(err => {
-      next(createHttpError.InternalServerError(err.message));
+      if(err.name === 'UserExistsError') {
+        next(createHttpError.Conflict(
+          err.message.replace('username', 'email')
+        ));
+        return;
+      }
+
+      if(err.name === 'ValidationError') {
+        next(createHttpError.BadRequest(
+          err.message.replace('username', 'email')
+        ));
+        return;
+      }
+
+      next(createHttpError.InternalServerError(
+        err.message.replace('username', 'email')
+      ));
     })
 
 

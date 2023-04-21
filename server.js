@@ -5,7 +5,6 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import createHttpError from 'http-errors';
 import passport from 'passport';
-import session from 'express-session';
 import https from 'http';
 
 import connectDB from './config/connectDB.js';
@@ -13,9 +12,10 @@ import corsOptions from './config/corsOptions.js';
 import redisClient from './config/initRedis.js';
 
 // routers
-import signupRouter from './routes/signup.js'
-import loginRouter from './routes/login.js'
-import googleAuthRouter from './routes/googleAuth.js'
+import signupRouter from './routes/signup.js';
+import loginRouter from './routes/login.js';
+import googleAuthRouter from './routes/googleAuth.js';
+import genTokenRouter from './routes/genToken.js';
 import logoutRouter from './routes/logout.js'
 import apiRouter from './api/api.router.js';
 
@@ -43,24 +43,23 @@ app.use(passport.initialize());
 
   app.get('/', (req, res) => {
     res.send('anime-watch-party HOME ROUTE');
-    // res.redirect(process.env.FRONTEND_BASE_URL)
   })
 
   app.get('/inactive', (req, res) => res.sendStatus(200));
   app.use('/signup', signupRouter);
   app.use('/login', loginRouter);
   app.use('/google-auth', googleAuthRouter);
+  app.use('/refresh', genTokenRouter);
   app.use('/logout', logoutRouter);
 
-  // app.use(checkAuth);
 
   app.get('/bruh', checkAuth, (req, res) => {
-    console.log(req.logout)
+    console.log(req.user)
     res.send('welcome to authed route')
   });
-  app.use('/api/v1' ,cors(corsOptions), apiRouter);
-  
 
+  app.use('/api/v1', apiRouter);
+  
   app.get('/ni', (req, res) => {
     res.sendFile('/anime-watch-party/backend/z_frontend/TEST.html');
   })
