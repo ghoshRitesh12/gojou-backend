@@ -1,15 +1,16 @@
 {
   "version": 2,
+  "name": "api-gojou",
   "builds": [
     {
-      "src": "./server.js",
+      "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/"
+      "dest": "app.js"
     }
   ]
 }
