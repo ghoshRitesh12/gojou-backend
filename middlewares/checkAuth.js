@@ -23,14 +23,9 @@ export function checkAuth(req, res, next) {
             refreshToken,
             process.env.REFRESH_TOKEN_SECRET
           );
-          
-
-          console.log('middleware');
-          
+                    
           if(accessDecoded.id !== refreshDecoded.id) 
             throw new Error('forbidden');
-
-          console.log('middleware working');
 
           req.user = {
             id: accessDecoded.id,

@@ -18,6 +18,7 @@ import googleAuthRouter from './routes/googleAuth.js';
 import genTokenRouter from './routes/genToken.js';
 import logoutRouter from './routes/logout.js'
 import apiRouter from './api/api.router.js';
+import favoritesRouter from './routes/favorites.js';
 
 import { checkAuth } from './middlewares/checkAuth.js';
 
@@ -51,18 +52,15 @@ app.use(passport.initialize());
   app.use('/google-auth', googleAuthRouter);
   app.use('/refresh', genTokenRouter);
   app.use('/logout', logoutRouter);
-
+  
+  app.use('/api/v1', apiRouter);
+  app.use('/favorites', favoritesRouter);
 
   app.get('/bruh', checkAuth, (req, res) => {
     console.log(req.user)
     res.send('welcome to authed route')
   });
 
-  app.use('/api/v1', apiRouter);
-  
-  app.get('/ni', (req, res) => {
-    res.sendFile('/anime-watch-party/backend/z_frontend/TEST.html');
-  })
 
   app.use((req, res, next) => next(createHttpError.NotFound()));
   app.use((error, req, res, next) => {

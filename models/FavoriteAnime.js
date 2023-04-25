@@ -22,11 +22,7 @@ const userSchema = new mongoose.Schema({
   duration: {
     type: String,
     default: null
-  },
-  rating: {
-    type: String,
-    default: null
-  },  
+  }, 
   episodes: {
     type: String,
     default: null

@@ -16,7 +16,7 @@ export const handleLogin = async (req, res, next) => {
           const refreshToken = await user.generateRefreshJwt();
           const accessToken = await user.generateAccessJwt();
           const stateExpiry = 20 * 24 * 60 * 60 * 1000;
-          const sessionExpiry = 20 * 1000;
+          const sessionExpiry = 20 * 60 * 1000;
 
           const userData = await encryptState(
             {

@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
       default: null
     },
     rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Rooms' }],
-    favoriteAnimes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Animes' }],
+    favoriteAnimes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FavoriteAnimes' }],
     
 
   }, 
