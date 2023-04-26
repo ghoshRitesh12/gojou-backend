@@ -28,8 +28,10 @@ export const handleTokenGen = async (req, res, next) => {
             '20d'
           );
 
+          // const stateExpiry = 20 * 24 * 60 * 60 * 1000;
           const stateExpiry = 20 * 24 * 60 * 60 * 1000;
-          const sessionExpiry = 25 * 60 * 1000;
+          // const sessionExpiry = 25 * 60 * 1000;
+          const sessionExpiry = 25 * 1000;
 
           res.cookie(
             'access_token',
@@ -52,7 +54,7 @@ export const handleTokenGen = async (req, res, next) => {
 
           res.status(200).json({
             message: 'tokens refreshed',
-            stateExpiry, sessionExpiry
+            sessionExpiry
           })
 
         } catch (err) {

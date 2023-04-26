@@ -13,9 +13,7 @@ export const addFavoriteAnime = async (req, res, next) => {
       foundUser.favoriteAnimes = allFavAnimes;
       await foundUser.save()
 
-      res.status(201).json({
-        message: 'Added to favorites',
-      })
+      res.sendStatus(201);
       return;
     }
     
@@ -24,10 +22,7 @@ export const addFavoriteAnime = async (req, res, next) => {
     foundUser.favoriteAnimes = allFavAnimes;
     await foundUser.save()
 
-    res.status(201).json({
-      message: 'Added to favorites',
-    })
-
+    res.sendStatus(201);
 
   } catch (err) {
     next(err);
@@ -60,14 +55,11 @@ export const isFavoriteAnime = async (req, res, next) => {
       match: { id: animeId }
     })).favoriteAnimes
 
-    console.log(foundFavAnime);
     
     if(foundFavAnime.length < 1) 
       throw createHttpError.NotFound('favorite anime absent');
     
-    res.status(200).json({
-      message: 'favorite anime present'
-    });
+    res.sendStatus(200);
 
   } catch (err) {
     next(err);
@@ -76,8 +68,28 @@ export const isFavoriteAnime = async (req, res, next) => {
 
 export const removeFavoriteAnime = async (req, res, next) => {
   try {
-    
+    const animeId = req.params.animeId;
+    if(!animeId) throw createHttpError.BadRequest();
+
+    const foundUser = await User.findById(req.user.id, 'favoriteAnimes');
+    const allFavAnimesId = foundUser.favoriteAnimes.map(anime => `${anime._id}`)
+
+    const foundFavAnime = (await User.findById(req.user.id, 'favoriteAnimes').populate({
+      path: 'favoriteAnimes', select: 'id',
+      match: { id: animeId }
+    })).favoriteAnimes;
+
+    if(foundFavAnime.length < 1)
+      throw createHttpError.NotFound('favorite anime absent');
+
+    foundUser.favoriteAnimes = allFavAnimesId.filter(animeId => {
+      return `${foundFavAnime[0]._id}` !== animeId
+    })
+    await foundUser.save();
+
+    res.sendStatus(204);
+
   } catch (err) {
-    
+    next(createHttpError.InternalServerError(err.message));
   }
 }

@@ -7,20 +7,19 @@ export const handleLogout = async (req, res, next) => {
       { 
         httpOnly: true, secure: true,
         maxAge: 30 * 24 * 60 * 60 * 1000,  
+        // maxAge: 40 * 1000,  
       }
     )
     res.clearCookie(
       'access_token',
       { 
         httpOnly: true, secure: true,
+        // maxAge: 25 * 1000,  
         maxAge: 30 * 60 * 1000,  
       }
     )
 
-    res.status(200).json({
-      message: 'logout success',
-      redirectTo: process.env.FRONTEND_BASE_URL
-    })
+    res.sendStatus(204);
     
   } catch (err) {
     console.log(err);
