@@ -390,6 +390,10 @@ class Parser {
         `${selector} .anisc-detail .film-stats .item:not(:has(.tick-item))`
       ).map((i, el) => $(el).text().trim()).get()
 
+      res.anime.info.stats.splice(1, 0, $(
+        `${selector} .anisc-detail .film-stats .tick-sub`
+      )?.text()?.trim())
+      
 
       // more information
       $(`${selector} .anisc-info-wrap .anisc-info .item:not(.w-hide)`).each((i, el) => {
@@ -443,6 +447,36 @@ class Parser {
   /**
    * @param {id} anime id
    */
+  static scrapeAnime1stEpisodeId = async (id) => {
+    const res = {
+      episodeId: null
+    }
+
+    try {      
+      const episodesAjax = await axios.get(`${ajax_url}/v2/episode/list/${id.split('-').pop()}`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'User-Agent': USER_AGENT,
+          Referer: new URL(`/watch/${id}`, BASE_URL).toString()
+        }
+      });
+
+      const $ = load(episodesAjax.data.html);
+
+
+      res.episodeId = $('.detail-infor-content .ss-list a').attr('href')?.split('/').pop()
+
+      return res.episodeId;
+
+    } catch (error) {
+      console.log(err);
+      throw createHttpError.InternalServerError(err.message);
+    }
+  }
+
+  /**
+   * @param {id} anime id
+   */
   static scrapeAnimeEpisodes = async (id) => {
     const res = {
       totalEpisodes: 0,
@@ -478,7 +512,7 @@ class Parser {
 
       return res;
 
-    } catch (error) {
+    } catch (err) {
       console.log(err);
       throw createHttpError.InternalServerError(err.message);
     }

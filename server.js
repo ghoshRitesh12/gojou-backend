@@ -19,6 +19,8 @@ import genTokenRouter from './routes/genToken.js';
 import logoutRouter from './routes/logout.js'
 import apiRouter from './api/api.router.js';
 import favoritesRouter from './routes/favorites.js';
+import roomsRouter from './routes/rooms.js';
+import roomRouter from './routes/room.js';
 
 import { checkAuth } from './middlewares/checkAuth.js';
 
@@ -55,6 +57,8 @@ app.use(passport.initialize());
   
   app.use('/api/v1', apiRouter);
   app.use('/favorites', favoritesRouter);
+  app.use('/rooms', roomsRouter);
+  app.use('/room', roomRouter);
 
   app.get('/bruh', checkAuth, (req, res) => {
     console.log(req.user)

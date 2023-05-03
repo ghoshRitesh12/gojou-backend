@@ -122,6 +122,24 @@ const getAnimeAboutInfo = async (req, res, next) => {
 }
 
 
+// /episode1?id=steinsgate-3
+const getAnime1stEpisodeId = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.scrapeAnime1stEpisodeId(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
 // /episodes?id=steinsgate-3
 const getAnimeEpisodes = async (req, res, next) => {
   try {
@@ -240,5 +258,5 @@ export default {
   getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
   getAnimeAboutInfo, getGenreAnime, getHomePage,
   getEpisodeSources, getEpisodeServers, getAnimeEpisodes,
-  getRoomAnimeInfo, getAnimeExploreCategory
+  getRoomAnimeInfo, getAnimeExploreCategory, getAnime1stEpisodeId
 }

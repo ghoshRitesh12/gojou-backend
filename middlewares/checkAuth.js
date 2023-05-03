@@ -2,6 +2,7 @@ import passport from "passport";
 import createHttpError from "http-errors";
 import { verifyJwt } from "../config/jwt.js";
 
+const whitelist = ['/rooms/browse'];
 
 export function checkAuth(req, res, next) {
   try {
@@ -34,6 +35,8 @@ export function checkAuth(req, res, next) {
           next(); 
 
         } catch (err) {
+          if(whitelist.includes(req.originalUrl)) return next();
+          
           console.table(err);
 
           if(err.message === 'forbidden') {
@@ -55,6 +58,8 @@ export function checkAuth(req, res, next) {
     )(req, res, next)
     
   } catch (err) {
+    if(whitelist.includes(req.originalUrl)) return next();
+
     console.log(err.message);
     next(err);
   }

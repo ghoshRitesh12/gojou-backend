@@ -1,11 +1,9 @@
 import { Router } from 'express';
 import { checkAuth } from '../middlewares/checkAuth.js';
 import apiController from './api.controller.js';
-import { USER_AGENT } from './helpers/utils.js';
 
 const router = Router();
 
-// router.use(checkAuth)
 
 router.get('/', (req, res) => res.send('Welcome to api home rote'));
 
@@ -17,6 +15,8 @@ router.get('/search', apiController.getAnimeSearchResult);
 router.get('/quick-search', apiController.getAnimeQuickSearch);
 
 router.get('/info', apiController.getAnimeAboutInfo);
+
+router.get('/episode1', checkAuth, apiController.getAnime1stEpisodeId);
 
 router.get('/episodes', checkAuth, apiController.getAnimeEpisodes);
 

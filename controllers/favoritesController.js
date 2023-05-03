@@ -13,7 +13,9 @@ export const addFavoriteAnime = async (req, res, next) => {
       foundUser.favoriteAnimes = allFavAnimes;
       await foundUser.save()
 
-      res.sendStatus(201);
+      res.status(201).json({
+        message: 'Added to favorites'
+      });
       return;
     }
     
@@ -22,10 +24,12 @@ export const addFavoriteAnime = async (req, res, next) => {
     foundUser.favoriteAnimes = allFavAnimes;
     await foundUser.save()
 
-    res.sendStatus(201);
+    res.status(201).json({
+      message: 'Added to favorites'
+    });
 
   } catch (err) {
-    next(err);
+    next(createHttpError.InternalServerError(err.message));
   }
 }
 
@@ -87,9 +91,12 @@ export const removeFavoriteAnime = async (req, res, next) => {
     })
     await foundUser.save();
 
-    res.sendStatus(204);
+    res.status(200).json({
+      message: 'Removed from favorites'
+    });
 
   } catch (err) {
     next(createHttpError.InternalServerError(err.message));
   }
 }
+

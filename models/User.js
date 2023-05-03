@@ -27,7 +27,11 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: null
     },
-    rooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Rooms' }],
+    createdRooms: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Rooms' }],
+    relatedRooms: [{
+      role: { type: String, default: 'member' },
+      roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Rooms' }     
+    }],
     favoriteAnimes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FavoriteAnimes' }],
     
 
