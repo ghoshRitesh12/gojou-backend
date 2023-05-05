@@ -4,9 +4,6 @@
   "description": "Create a room & watch anime with your friends",
   "main": "server.js",
   "type": "module",
-  "engines": {
-    "node": "18.x"
-  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
