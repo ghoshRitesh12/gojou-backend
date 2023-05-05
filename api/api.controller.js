@@ -1,8 +1,9 @@
 import createHttpError from 'http-errors';
 
-import Parser from './animeParser.js';
+import Parser from './anime.parser.js';
 import { Servers, animeCategories, animeGenres } from './helpers/utils.js';
 
+import redisClient from '../config/initRedis.js';
 
 
 const getAnimeCategory = async (req, res, next) => {
@@ -16,6 +17,26 @@ const getAnimeCategory = async (req, res, next) => {
       throw createHttpError.NotFound('searched parameter not present') 
 
     const data = await Parser.scrapeAnimeCategory(category, page);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+// /explore/:ova
+const getAnimeExploreCategory = async (req, res, next) => {
+  try {
+
+    const category = decodeURIComponent(req.params.category);
+
+    if(!category) throw createHttpError.BadRequest('category required') 
+
+    if(!animeCategories.includes(category)) 
+      throw createHttpError.NotFound('searched parameter not present') 
+
+    const data = await Parser.scrapeAnimeExploreCategory(category)
     
     res.status(200).json(data);
     
@@ -43,11 +64,15 @@ const getAnimeSearchResult = async (req, res, next) => {
   }
 }
 
-
-// /home
-const getHomePage = async (req, res, next) => {
+// /quick-search?q=steins
+const getAnimeQuickSearch = async (req, res, next) => {
   try {
-    const data = await Parser.scrapeHomePage();
+    const q = req.query.q ? decodeURIComponent(req.query.q) : null;
+
+    if(q === null)
+      throw createHttpError.BadRequest('search keyword required');
+
+    const data = await Parser.scrapeAnimeSearchSuggestion(q);
     
     res.status(200).json(data);
     
@@ -58,20 +83,22 @@ const getHomePage = async (req, res, next) => {
 }
 
 
-// /most-viewed?period=month
-const getMostViewedAnime = async (req, res, next) => {
-  const periods = ['today', 'week', 'month'];
+// /home
+const getHomePage = async (req, res, next) => {
   try {
-    const period = decodeURIComponent((!req.query.period) ? 'today' : req.query.period);
+    if(await redisClient.exists('home')) {
+      const data = await redisClient.get('home');
+      return res.status(200).json(JSON.parse(data));
+    }
 
-    if(!periods.includes(period)) 
-      throw createHttpError.NotFound('invalid period')
-    
-    const data = await Parser.scrapeMostViewedAnime(period);
+    const data = await Parser.scrapeHomePage();
+
+    await redisClient.set('home', JSON.stringify(data));
     
     res.status(200).json(data);
     
   } catch (err) {
+    console.log(err);
     next(err);   
   }
 }
@@ -86,6 +113,42 @@ const getAnimeAboutInfo = async (req, res, next) => {
       throw createHttpError.BadRequest('anime unique id required')
       
     const data = await Parser.scrapeAnimeAboutInfo(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
+// /episode1?id=steinsgate-3
+const getAnime1stEpisodeId = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.scrapeAnime1stEpisodeId(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
+// /episodes?id=steinsgate-3
+const getAnimeEpisodes = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.scrapeAnimeEpisodes(id);
     
     res.status(200).json(data);
     
@@ -118,6 +181,24 @@ const getGenreAnime = async (req, res, next) => {
 }
 
 
+// /info-room?id=attack-on-titan-112
+const getRoomAnimeInfo = async (req, res, next) => {
+  try {
+    const id = req.query.id ? decodeURIComponent(req.query.id) : null;
+
+    if(id === null)
+      throw createHttpError.BadRequest('anime unique id required')
+      
+    const data = await Parser.fetchRoomAnimeInfo(id);
+    
+    res.status(200).json(data);
+    
+  } catch (err) {
+    next(err);   
+  }
+}
+
+
 // /servers?episodeId=steinsgate-0-92?ep=2051
 const getEpisodeServers = async(req, res, next) => {
   try {
@@ -136,8 +217,8 @@ const getEpisodeServers = async(req, res, next) => {
 }
 
 
-// /watch?episodeId=steinsgate-3?ep=230
-const getEpisodeSources = async(req, res, next) => {
+// /watch-episode?episodeId=steinsgate-3?ep=230
+const getEpisodeSources = async (req, res, next) => {
   try {
     const episodeId = req.query.episodeId ? decodeURIComponent(req.query.episodeId) : null;
     const server = req.query.server ? decodeURIComponent(req.query.server) : Servers.VidStreaming;
@@ -146,7 +227,19 @@ const getEpisodeSources = async(req, res, next) => {
     if(episodeId === null) 
       throw createHttpError.BadRequest('episode id required');
 
+    if(await redisClient.exists(server)) {
+
+      const data = await redisClient.get(server);
+
+      return res.status(200).json({
+        subOrDub,
+        episode: JSON.parse(data)
+      });
+    }
+
     const data = await Parser.fetchEpisodeSources(episodeId, server, subOrDub);
+
+    await redisClient.set(server, JSON.stringify(data));
 
     res.status(200).json({
       subOrDub,
@@ -154,13 +247,16 @@ const getEpisodeSources = async(req, res, next) => {
     });
     
   } catch (err) {
+    console.log(err.message);
     next(err);
   }
 }
 
 
+
 export default { 
-  getAnimeCategory, getAnimeSearchResult, 
-  getMostViewedAnime, getAnimeAboutInfo, getGenreAnime,
-  getEpisodeSources, getEpisodeServers, getHomePage,
+  getAnimeCategory, getAnimeSearchResult, getAnimeQuickSearch,
+  getAnimeAboutInfo, getGenreAnime, getHomePage,
+  getEpisodeSources, getEpisodeServers, getAnimeEpisodes,
+  getRoomAnimeInfo, getAnimeExploreCategory, getAnime1stEpisodeId
 }

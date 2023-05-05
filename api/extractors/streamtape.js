@@ -2,8 +2,6 @@ import axios from "axios";
 import { load } from 'cheerio';
 import createHttpError from "http-errors";
 
-import { USER_AGENT } from "../helpers/utils.js";
-
 
 class StreamTape {
   serverName = 'StreamTape';

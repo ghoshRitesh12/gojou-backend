@@ -3,18 +3,15 @@ import { load } from 'cheerio';
 import CryptoJS from 'crypto-js';
 import createHttpError from 'http-errors';
 
-import { USER_AGENT, substringAfter, substringBefore } from '../helpers/utils.js';
+import { substringAfter, substringBefore } from '../helpers/utils.js';
 
 class RapidCloud {
   serverName = 'RapidCloud';
   sources = [];
 
   // https://rapid-cloud.co/embed-6/eVZPDXwVfrY3?vast=1
-
   fallbackKey = 'c1d17096f2ca11b7';
   host = 'https://rapid-cloud.co';
-  // consumetApi = 'https://api.consumet.org';
-  // enimeApi = 'https://api.enime.moe';
 
 
   extract = async (videoUrl) => {
@@ -37,8 +34,6 @@ class RapidCloud {
 
       let { data: { sources, tracks, intro, encrypted } } = res;
 
-      // console.log({ sources, tracks, intro, encrypted });
-
       let decryptKey = await (
         await axios.get('https://github.com/enimax-anime/key/blob/e6/key.txt')
       ).data;
@@ -59,6 +54,7 @@ class RapidCloud {
           sources = JSON.parse(decrypt.toString(CryptoJS.enc.Utf8));
         }
       } catch (err) {
+        console.log(err.message);
         throw createHttpError.InternalServerError('Cannot decrypt sources. Perhaps the key is invalid.');
       }
 
@@ -124,43 +120,43 @@ class RapidCloud {
   }
 
 
-  captcha = async (url, key) => {
-    const uri = new URL(url);
-    const domain = uri.protocol + '//' + uri.host;
+  // captcha = async (url, key) => {
+  //   const uri = new URL(url);
+  //   const domain = uri.protocol + '//' + uri.host;
 
-    const { data } = await axios.get(`https://www.google.com/recaptcha/api.js?render=${key}`, {
-      headers: {
-        Referer: domain,
-      }
-    })
+  //   const { data } = await axios.get(`https://www.google.com/recaptcha/api.js?render=${key}`, {
+  //     headers: {
+  //       Referer: domain,
+  //     }
+  //   })
 
-    const v = data?.substring(data.indexOf('/releases/'), data.lastIndexOf('/recaptcha')).split('/releases/')[1];
+  //   const v = data?.substring(data.indexOf('/releases/'), data.lastIndexOf('/recaptcha')).split('/releases/')[1];
 
-    //TODO: NEED to fix the co (domain) parameter to work with every domain
-    const anchor = `https://www.google.com/recaptcha/api2/anchor?ar=1&hl=en&size=invisible&cb=kr42069kr&k=${key}&co=aHR0cHM6Ly9yYXBpZC1jbG91ZC5ydTo0NDM.&v=${v}`;
-    const c = load((await axios.get(anchor)).data)('#recaptcha-token').attr('value');
+  //   //TODO: NEED to fix the co (domain) parameter to work with every domain
+  //   const anchor = `https://www.google.com/recaptcha/api2/anchor?ar=1&hl=en&size=invisible&cb=kr42069kr&k=${key}&co=aHR0cHM6Ly9yYXBpZC1jbG91ZC5ydTo0NDM.&v=${v}`;
+  //   const c = load((await axios.get(anchor)).data)('#recaptcha-token').attr('value');
 
-    // currently its not returning proper response. not sure why
-    const res = await axios.post(
-      `https://www.google.com/recaptcha/api2/reload?k=${key}`,
-      {
-        v: v,
-        k: key,
-        c: c,
-        co: 'aHR0cHM6Ly9yYXBpZC1jbG91ZC5ydTo0NDM.',
-        sa: '',
-        reason: 'q',
-      },
-      {
-        headers: {
-          Referer: anchor,
-        },
-      }
-    );
+  //   // currently its not returning proper response. not sure why
+  //   const res = await axios.post(
+  //     `https://www.google.com/recaptcha/api2/reload?k=${key}`,
+  //     {
+  //       v: v,
+  //       k: key,
+  //       c: c,
+  //       co: 'aHR0cHM6Ly9yYXBpZC1jbG91ZC5ydTo0NDM.',
+  //       sa: '',
+  //       reason: 'q',
+  //     },
+  //     {
+  //       headers: {
+  //         Referer: anchor,
+  //       },
+  //     }
+  //   );
 
-    return res.data.substring(res.data.indexOf('rresp","'), res.data.lastIndexOf('",null'));
+  //   return res.data.substring(res.data.indexOf('rresp","'), res.data.lastIndexOf('",null'));
     
-  }
+  // }
   
 }
 
