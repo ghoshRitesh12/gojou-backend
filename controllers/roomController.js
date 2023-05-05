@@ -3,7 +3,6 @@ import Room from '../models/Room.js';
 import User from '../models/User.js';
 import { verifyJwt, signJwt } from '../config/jwt.js';
 
-const isPresent = (key, src) => src.map(i => `${i._id}`).includes(key)
 
 
 export const getRoomInfo = async (req, res, next) => {
@@ -94,33 +93,243 @@ export const updateRoomAnime = async (req, res, next) => {
 
 export const updateRoomConfig = async (req, res, next) => {
   try {
-    const queryFields = ['private', 'mods', 'members'];
+    const roomQueryFields = ['private', 'mods', 'members', 'admin'];
     
     const { visibility, member, drop } = req.query;
-    if(!req.params.roomId) throw createHttpError.BadRequest('room id required');
+    if(!visibility && !member && !drop) throw createHttpError.BadRequest();
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
 
-    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, queryFields);
-    if(!foundRoom) throw createHttpError.NotFound('room not found');
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, roomQueryFields);
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
 
+    if(`${foundRoom.admin}` !== req.user.id)
+      throw createHttpError.Forbidden('Not authorized');
+
+
+    // --toggling private
     if(visibility) {
       foundRoom.private = req.body.privacy;
       await foundRoom.save();
 
-      res.status(200).json({
+      return res.status(200).json({
         message: "Room's privacy changed"
       })
-      return;
     }
 
-    // visibility --for toggling private
-    // member --for mod promotion or demotion
-    // drop --for delete
+    // --mod promotion or demotion
+    if(member) {
+      if(!['promote', 'demote'].includes(member))
+        throw createHttpError.BadRequest();
+
+      if(!req.body.uid) throw createHttpError.BadRequest();
+
+      const foundUser = await User.findById(req.body.uid, 'relatedRooms');
+      if(!foundUser) throw createHttpError.NotFound('User not found');
+
+
+      if(`${foundRoom.admin}` === `${foundUser._id}`)
+        throw createHttpError.BadRequest();
+
+      if(!foundRoom.members.map(i => `${i._id}`).includes(`${foundUser._id}`)) 
+        throw createHttpError.Forbidden('Not a member');
+      
+
+
+      if(member === 'promote') {
+        foundRoom.mods.push(`${foundUser._id}`);
+        await foundRoom.save();
+
+        foundUser.relatedRooms.find(room => (
+          `${room.roomId}` === `${foundRoom._id}`
+        )).role = 'mod';
+        await foundUser.save();
+
+        return res.status(200).json({
+          message: 'Promoted member to mod'
+        })
+      }
+
+      if(member === 'demote') {
+        foundRoom.mods = foundRoom.mods.filter(mod => `${mod._id}` !== `${foundUser._id}`);
+        await foundRoom.save();
+
+        foundUser.relatedRooms.find(room => (
+          `${room.roomId}` === `${foundRoom._id}`
+        )).role = 'member';
+        await foundUser.save();
+
+        return res.status(200).json({
+          message: 'Demoted mod to member'
+        })
+      } 
+    }
+
+    // --deleting member
+    if(drop) {
+      if(!['mod', 'member'].includes(drop))
+        throw createHttpError.BadRequest();
+
+      if(!req.body.uid) throw createHttpError.BadRequest();
+
+      const foundUser = await User.findById(req.body.uid, 'relatedRooms');
+      if(!foundUser) throw createHttpError.NotFound('User not found');
+
+
+      if(`${foundRoom.admin}` === `${foundUser._id}`)
+        throw createHttpError.BadRequest();
+
+      if(!foundRoom.members.map(i => `${i._id}`).includes(`${foundUser._id}`)) 
+        throw createHttpError.Forbidden('Not a member');
+
+
+      foundRoom.members = foundRoom.members.filter(member => (
+        `${member._id}` !== `${foundUser._id}`
+      ))
+
+      foundUser.relatedRooms = foundUser.relatedRooms.filter(room => (
+        `${room.roomId}` !== `${foundRoom._id}`
+      ))
+
+      await foundUser.save();
+
+      if(drop === 'mod') {
+        foundRoom.mods = foundRoom.mods.filter(mod => (
+          `${mod._id}` !== `${foundUser._id}`
+        ))
+      }
+      await foundRoom.save();
+
+      return res.status(200).json({
+        message: `Removed ${drop} from room`
+      });
+    }
 
   } catch (err) {
     console.log(err);
-    next(createHttpError.InternalServerError(err.message));
+    next(err);
   }
 }
+
+
+
+export const joinRoom = async (req, res, next) => {
+  try {
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId });
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+    
+    if(`${foundRoom.admin}` === req.user.id) 
+      throw createHttpError.BadRequest();
+    
+    if(foundRoom.members.map(i => `${i._id}`).includes(req.user.id)) {
+      return res.status(200).json({
+        message: 'Already part of the room',
+        redirectTo: `/room/${foundRoom.roomId}`
+      })
+    }
+      
+    foundRoom.members.push(req.user.id)
+    await foundRoom.save();
+
+
+    const foundUser = await User.findById(req.user.id, 'relatedRooms');
+
+    if(foundUser.relatedRooms.map(i => `${i.roomId}`).includes(foundRoom._id)) {
+      return res.status(200).json({
+        message: 'Already part of the room',
+        redirectTo: `/room/${foundRoom.roomId}`
+      })
+    }
+    
+    foundUser.relatedRooms.push({ roomId: foundRoom._id });
+    await foundUser.save()
+
+    res.status(200).json({
+      message: 'Joined room 🎉',
+      redirectTo: `/room/${foundRoom.roomId}`
+    })
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+export const leaveRoom = async (req, res, next) => {
+  try {
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId });
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+    
+    if(`${foundRoom.admin}` === req.user.id) 
+      throw createHttpError.BadRequest();
+    
+    if(!foundRoom.members.map(i => `${i._id}`).includes(req.user.id))
+      throw createHttpError.NotFound('Member not found');
+
+    if(foundRoom.mods.map(i => `${i._id}`).includes(req.user.id)) {
+      foundRoom.mods = foundRoom.mods.filter(mod => `${mod._id}` !== req.user.id);
+    }
+    foundRoom.members = foundRoom.members.filter(member => `${member._id}` !== req.user.id);
+    await foundRoom.save();
+
+    console.log(foundRoom);
+
+    const foundUser = await User.findById(req.user.id, 'relatedRooms');
+    foundUser.relatedRooms = foundUser.relatedRooms.filter(room => (
+      `${room.roomId}` !== `${foundRoom._id}`
+    ))
+    console.log(foundUser);
+
+    await foundUser.save();
+
+    res.status(200).json({
+      message: 'Left room'
+    })
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+export const deleteRoom = async (req, res, next) => {
+  try {
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, ['_id', 'admin']);
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+    
+    if(`${foundRoom.admin}` !== req.user.id) 
+      throw createHttpError.Forbidden();
+    
+
+    const adminUser = await User.findById(req.user.id, 'createdRooms');
+    adminUser.createdRooms = adminUser.createdRooms.filter(room => (
+      `${room._id}` !== `${foundRoom._id}`
+    ))
+
+    await adminUser.save();
+
+    await User.updateMany(
+      { relatedRooms: { $elemMatch: { roomId: foundRoom._id } } },
+      { $pull: { relatedRooms: { roomId: foundRoom._id } } }
+    )
+
+    await Room.deleteOne({ _id: foundRoom._id });
+
+    res.status(200).json({
+      message: 'Deleted room'
+    })
+    
+
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
+}
+
+
 
 export const handleRoomInvitation = async (req, res, next) => {
   try {
@@ -139,33 +348,38 @@ export const handleRoomInvitation = async (req, res, next) => {
     if(!foundRoom) throw createHttpError.NotFound('Room not found');
     console.log(foundRoom);
 
-
-    // if(foundRoom.members.map(i => `${i._id}`).includes(req.user.id))
-    //   throw createHttpError.Conflict('You are already a part of the room');
-
+    // already a member
+    if(foundRoom.members.map(i => `${i._id}`).includes(req.user.id)) {
+      return res.status(200).json({
+        message: 'Already part of the room',
+        redirectTo: `/room/${foundRoom.roomId}`
+      })
+    }
     
     foundRoom.members.push(req.user.id);
     await foundRoom.save();
 
 
-    // if(!foundUser.relatedRooms.map(i => `${i._id}`).includes(foundRoom._id)) 
-    //   throw createHttpError.Conflict();
-    
     const foundUser = await User.findById(req.user.id, 'relatedRooms');
-    foundUser.relatedRooms.push({
-      roomId: foundRoom._id
-    })
 
+    if(foundUser.relatedRooms.map(i => `${i.roomId}`).includes(foundRoom._id)) {
+      return res.status(200).json({
+        message: 'Already part of the room',
+        redirectTo: `/room/${foundRoom.roomId}`
+      })
+    }
+    
+    foundUser.relatedRooms.push({ roomId: foundRoom._id });
     await foundUser.save()
 
-    res.json({
+    res.status(200).json({
       message: 'Joined room 🎉',
       redirectTo: `/room/${foundRoom.roomId}`
     })
 
   } catch (err) {
     console.log(err);
-    next(createHttpError.InternalServerError(err.message))
+    next(err.message)
   }
 }
 

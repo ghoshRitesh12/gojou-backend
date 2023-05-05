@@ -1,5 +1,5 @@
 import createHttpError from 'http-errors';
-import Parser from '../api/animeParser.js';
+import Parser from '../api/anime.parser.js';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
 import { signJwt } from '../config/jwt.js';
@@ -105,27 +105,15 @@ export const browseRooms = async (req, res, next) => {
     if(req.user) {
       const foundUser = await User.findById(req.user.id, userQueryFields);
 
-      const createdRoomIds = foundUser.createdRooms.map(j => `${j._id}`)
-      const relatedRooms = foundUser.relatedRooms.filter(i => (
-        !createdRoomIds.includes(`${i.roomId}`)
-      ))
-
-
       data.createdRooms = setMembers((await foundUser.populate({
         path: 'createdRooms', select: roomQueryFields,
         populate: { path: 'admin', select: ['name', 'profilePicture'] }
       })).createdRooms);
 
-      // data.relatedRoomss = setMembers(((await foundUser.populate({
-      //   path: 'relatedRooms.roomId', select: roomQueryFields,
-      //   populate: { path: 'admin', select: ['name', 'profilePicture'] }
-      // })).relatedRooms).map(i => i.roomId));
-      data.relatedRoomss = (await foundUser.populate({
-        path: 'relatedRooms.roomId',
+      data.relatedRooms = setMembers(((await foundUser.populate({
+        path: 'relatedRooms.roomId', select: roomQueryFields,
         populate: { path: 'admin', select: ['name', 'profilePicture'] }
-      })).relatedRooms;
-
-      console.log(data.relatedRoomss);
+      })).relatedRooms).map(i => i.roomId));
 
     }
     

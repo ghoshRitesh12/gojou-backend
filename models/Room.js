@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 
 const collectionName = 'Rooms';
 
-const userSchema = new mongoose.Schema({
+const roomSchema = new mongoose.Schema({
     name: {
       type: String,
       required: true,
@@ -50,6 +50,6 @@ const userSchema = new mongoose.Schema({
   }
 )
 
-const model = mongoose.model(collectionName, userSchema)
+const model = mongoose.model(collectionName, roomSchema)
 
 export default model;

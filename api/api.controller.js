@@ -1,6 +1,6 @@
 import createHttpError from 'http-errors';
 
-import Parser from './animeParser.js';
+import Parser from './anime.parser.js';
 import { Servers, animeCategories, animeGenres } from './helpers/utils.js';
 
 import redisClient from '../config/initRedis.js';
