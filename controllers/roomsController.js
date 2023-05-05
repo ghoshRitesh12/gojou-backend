@@ -3,6 +3,7 @@ import Parser from '../api/anime.parser.js';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
 import { signJwt } from '../config/jwt.js';
+import gojou from '../config/gojou.js';
 
 const setMembers = (rooms) => {
   return rooms.map(room => {
@@ -116,8 +117,14 @@ export const browseRooms = async (req, res, next) => {
       })).relatedRooms).map(i => i.roomId));
 
     }
-    
-    
+
+    await gojou.emitEncrypt(
+      'anime:alter', 
+      {
+        msg: 'dummy data lmao'
+      }
+    )
+
     return res.status(200).json(data);
 
   } catch (err) {

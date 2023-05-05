@@ -21,3 +21,27 @@ export const decryptState = (encString, secret) => {
     )
   })
 }
+
+
+export const encryptSSE = async (eventName, sseData) => {
+  try {
+    const encData = await encryptState(
+      `${eventName}___${sseData}`, 
+      process.env.FRONTEND_STATE_SECRET
+    );
+     
+    return encData;
+
+  } catch (err) {
+    throw err;
+  }
+}
+
+export const deserializeSSE = async () => {
+  try {
+    
+  } catch (err) {
+    throw err;
+  }
+}
+

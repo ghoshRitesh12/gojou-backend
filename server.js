@@ -42,7 +42,7 @@ app.use(passport.initialize());
 
 (async () => {
   await connectDB(process.env.DATABASE_CONNECTION_URI);
-  // await redisClient.connect();
+  await redisClient.connect();
 
   app.get('/', (req, res) => {
     res.send('anime-watch-party HOME ROUTE');
