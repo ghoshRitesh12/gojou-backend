@@ -1,11 +1,12 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import http from 'http';
 import morgan from 'morgan';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import createHttpError from 'http-errors';
 import passport from 'passport';
-import https from 'http';
+import { Server } from 'socket.io';
 
 import connectDB from './config/connectDB.js';
 import corsOptions from './config/corsOptions.js';
@@ -29,6 +30,8 @@ import './config/passportAuth.js';
 
 dotenv.config();
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 const PORT = process.env.PORT || 5000;
 
 app.use(cors(corsOptions));
@@ -39,10 +42,9 @@ app.use(express.urlencoded({ extended: false }))
 
 app.use(passport.initialize());
 
-
 (async () => {
   await connectDB(process.env.DATABASE_CONNECTION_URI);
-  // await redisClient.connect();
+  await redisClient.connect();
 
   app.get('/', (req, res) => {
     res.send('anime-watch-party HOME ROUTE');
@@ -73,7 +75,7 @@ app.use(passport.initialize());
   })
 
   
-  app.listen(PORT, () => (
+  server.listen(PORT, () => (
     console.log(`🚀 @ http://localhost:${PORT}`)
   ));
 

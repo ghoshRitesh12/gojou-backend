@@ -24,5 +24,7 @@ router.put('/:roomId/config', roomController.updateRoomConfig)
 router.put('/:roomId/anime', roomController.updateRoomAnime)
 
 
+router.get('/:roomId/sse', roomController.roomSSE)
+
 
 export default router;

@@ -148,7 +148,17 @@ const getAnimeEpisodes = async (req, res, next) => {
     if(id === null)
       throw createHttpError.BadRequest('anime unique id required')
       
+    if(await redisClient.exists(`/episodes?id=${id}`)) {
+      const data = await redisClient.get(`/episodes?id=${id}`);
+      return res.status(200).json(JSON.parse(data));
+    }
+
     const data = await Parser.scrapeAnimeEpisodes(id);
+
+    await redisClient.set(
+      `/episodes?id=${id}`,
+      JSON.stringify(data)
+    )
     
     res.status(200).json(data);
     
@@ -187,9 +197,16 @@ const getRoomAnimeInfo = async (req, res, next) => {
     const id = req.query.id ? decodeURIComponent(req.query.id) : null;
 
     if(id === null)
-      throw createHttpError.BadRequest('anime unique id required')
+      throw createHttpError.BadRequest('anime unique id required');
+
+    if(await redisClient.exists(`/info-room?id=${id}`)) {
+      const data = await redisClient.get(`/info-room?id=${id}`);
+      return res.status(200).json(JSON.parse(data));
+    }
       
     const data = await Parser.fetchRoomAnimeInfo(id);
+
+    await redisClient.set(`/info-room?id=${id}`, JSON.stringify(data));
     
     res.status(200).json(data);
     
@@ -207,7 +224,17 @@ const getEpisodeServers = async(req, res, next) => {
     if(episodeId === null) 
       throw createHttpError.BadRequest('episode id required');
 
+    if(await redisClient.exists(`/servers?episodeId=${episodeId}`)) {
+      const data = await redisClient.get(`/servers?episodeId=${episodeId}`);
+      return res.status(200).json(JSON.parse(data));
+    }
+
     const data = await Parser.fetchEpisodeServers(episodeId);
+
+    await redisClient.set(
+      `/servers?episodeId=${episodeId}`, 
+      JSON.stringify(data)
+    )
 
     res.status(200).json(data);
     

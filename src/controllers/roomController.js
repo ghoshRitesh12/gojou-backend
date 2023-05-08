@@ -1,6 +1,7 @@
 import createHttpError from 'http-errors';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
+import gojou from '../config/gojou.js';
 import { verifyJwt, signJwt } from '../config/jwt.js';
 
 
@@ -49,7 +50,6 @@ export const getRoomInfo = async (req, res, next) => {
     next(err);
   }
 }
-
 export const updateRoomAnime = async (req, res, next) => {
   try {
     const room = { data: null };
@@ -90,7 +90,6 @@ export const updateRoomAnime = async (req, res, next) => {
     next(createHttpError.InternalServerError(err.message));
   }
 }
-
 export const updateRoomConfig = async (req, res, next) => {
   try {
     const roomQueryFields = ['private', 'mods', 'members', 'admin'];
@@ -211,7 +210,6 @@ export const updateRoomConfig = async (req, res, next) => {
 }
 
 
-
 export const joinRoom = async (req, res, next) => {
   try {
     if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
@@ -254,7 +252,6 @@ export const joinRoom = async (req, res, next) => {
     next(err);
   }
 }
-
 export const leaveRoom = async (req, res, next) => {
   try {
     if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
@@ -292,7 +289,6 @@ export const leaveRoom = async (req, res, next) => {
     next(err);
   }
 }
-
 export const deleteRoom = async (req, res, next) => {
   try {
     if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
@@ -328,7 +324,6 @@ export const deleteRoom = async (req, res, next) => {
     next(err);
   }
 }
-
 
 
 export const handleRoomInvitation = async (req, res, next) => {
@@ -382,7 +377,6 @@ export const handleRoomInvitation = async (req, res, next) => {
     next(err.message)
   }
 }
-
 export const genRoomInviteToken = async (req, res, next) => {
   try {
     const queryFields = ['roomId', 'members'];
@@ -415,12 +409,46 @@ export const genRoomInviteToken = async (req, res, next) => {
 }
 
 
-export const getRoom = async (req, res, next) => {
+
+export const roomSSE = async (req, res, next) => {
+  const queryFields = [
+    'name', 'roomId', 'avatar', 'private',
+    'admin', 'mods', 'members', 'createdAt',
+    'animeId', 'animeEpisodeId', 'animeEpisodeNo'
+  ];
   try {
-    res.send('hi');
+    const info = {
+      role: 'viewer',
+      room: null
+    }
+
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, queryFields);
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+
+    // filtering admin & mods from all members
+    const nonMemberSrc = [...foundRoom.mods.map(i => `${i._id}`), `${foundRoom.admin}`];
+    foundRoom.members = foundRoom.members.filter(i => !nonMemberSrc.includes(`${i._id}`));
+
+    if(`${foundRoom.admin}` === req.user.id) {
+      info.role = 'admin';
+    } else if(foundRoom.mods.map(i => `${i._id}`).includes(req.user.id)) {
+      info.role = 'mod';
+    } else if(foundRoom.members.includes(req.user.id)) {
+      info.role = 'member';
+    }
+
+    if(foundRoom.private && info.role === 'viewer') 
+      throw createHttpError.Forbidden();
+
+    info.room = foundRoom;
+
+    
+
   } catch (err) {
     console.log(err);
-    next(createHttpError.InternalServerError(err.message));    
+    gojou.emit('error', err.message);   
   }
 } 
 
