@@ -2,6 +2,7 @@
 /node_modules
 .env
 
+dump.rdb
 /z_frontend
 /nodemon.json
 /getSite.sh
