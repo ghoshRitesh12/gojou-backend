@@ -1,8 +1,7 @@
 import createHttpError from 'http-errors';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
-import gojou, { g2 } from '../config/gojou.js';
-import { Events } from '../config/events.js';
+import gojou from '../config/gojou.js';
 import { verifyJwt, signJwt } from '../config/jwt.js';
 
 
@@ -443,40 +442,9 @@ export const roomSSE = async (req, res, next) => {
     if(foundRoom.private && info.role === 'viewer') 
       throw createHttpError.Forbidden();
 
-    info.room = foundRoom
-    const initialData = await gojou.serializeSSE(info);
+    info.room = foundRoom;
 
-
-    const headers = {
-      'Content-Type': 'text/event-stream',
-      'Connection': 'keep-alive',
-      'Cache-Control': 'no-cache'
-    };
-    res.writeHead(200, headers);
-    res.write(`data: sse initiated\n\n`);
-
-    res.write(`event: room:join\n`)
-    res.write(`data: ${initialData}\n\n`);
-    res.flushHeaders()
-
-
-    gojou.on('anime:alter', (eventName, sseData) => {
-      console.log(`anime: ${gojou.listenerCount(eventName)} used of ${gojou.getMaxListeners()}`);
-
-      res.write(`event: ${eventName}\n`)
-      res.write(`data: ${sseData}\n\n`)
-    })
-
-    if(typeof gojou._events['anime:alter'] !== 'function') {
-      gojou._events['anime:alter'].shift()
-    }
-
-
-
-    // gojou.on('error', (errMsg) => {
-    //   res.write(`event: error\n`);
-    //   res.write(`data: ${errMsg}\n\n`)
-    // })
+    
 
   } catch (err) {
     console.log(err);

@@ -2,11 +2,11 @@
   "name": "anime-room-backend",
   "version": "1.0.0",
   "description": "Create a room & watch anime with your friends",
-  "main": "server.js",
+  "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "start": "node --trace-warnings server.js",
-    "dev": "nodemon server.js"
+    "start": "node --trace-warnings./src/server.js",
+    "dev": "nodemon /src/server.js"
   },
   "keywords": [
     "anime",

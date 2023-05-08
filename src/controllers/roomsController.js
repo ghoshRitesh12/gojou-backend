@@ -4,7 +4,6 @@ import Room from '../models/Room.js';
 import User from '../models/User.js';
 import { signJwt } from '../config/jwt.js';
 import gojou, { g2 } from '../config/gojou.js';
-import { Events } from  '../config/events.js';
 
 const setMembers = (rooms) => {
   return rooms.map(room => {
