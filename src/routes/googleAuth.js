@@ -13,7 +13,7 @@ router.get('/callback',
   passport.authenticate(
     'google', 
     { 
-      failureRedirect: `${process.env.FRONTEND_BASE_URL}/auth-redirect?status=400`,
+      failureRedirect: `${process.env.FRONTEND_DEV_BASE_URL}/auth-redirect?status=400`,
       session: false
     }
   ), 

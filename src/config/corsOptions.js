@@ -1,5 +1,10 @@
+import dotenv from 'dotenv';
+
+dotenv.config()
+
 const allOrigins = [
-  'http://localhost:3000', 'https://gojou.vercel.app'
+  process.env.FRONTEND_DEV_BASE_URL, 
+  process.env.FRONTEND_PROD_BASE_URL
 ];
 
 const corsOptions = {

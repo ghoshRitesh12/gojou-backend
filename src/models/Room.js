@@ -42,7 +42,6 @@ const roomSchema = new mongoose.Schema({
       default: 1
     },
     
-    
   }, 
   { 
     collection: collectionName,

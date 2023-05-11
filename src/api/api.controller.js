@@ -253,10 +253,12 @@ const getEpisodeSources = async (req, res, next) => {
 
     if(episodeId === null) 
       throw createHttpError.BadRequest('episode id required');
+    
+    const redisKey = `/watch-episode?episodeId=${episodeId}&server=${server}&subOrDub=${subOrDub}`; 
 
-    if(await redisClient.exists(server)) {
+    if(await redisClient.exists(redisKey)) {
 
-      const data = await redisClient.get(server);
+      const data = await redisClient.get(redisKey);
 
       return res.status(200).json({
         subOrDub,
@@ -266,7 +268,7 @@ const getEpisodeSources = async (req, res, next) => {
 
     const data = await Parser.fetchEpisodeSources(episodeId, server, subOrDub);
 
-    await redisClient.set(server, JSON.stringify(data));
+    await redisClient.set(redisKey, JSON.stringify(data));
 
     res.status(200).json({
       subOrDub,

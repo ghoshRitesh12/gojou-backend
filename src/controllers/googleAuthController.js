@@ -4,7 +4,7 @@ import User from '../models/User.js';
 
 dotenv.config();
 
-const frontendBaseUrl = process.env.FRONTEND_BASE_URL;
+const frontendBaseUrl = process.env.FRONTEND_DEV_BASE_URL;
 
 
 export const handleGoogleAuthCallback = async (req, res, next) => {
@@ -18,6 +18,7 @@ export const handleGoogleAuthCallback = async (req, res, next) => {
   
     const userData = await encryptState(
       {
+        _id: req.user?._id,
         name: req.user?.name,
         email: req.user?.email,
         profilePicture: req.user?.profilePicture,

@@ -585,17 +585,7 @@ class Parser {
 
 
       const topAiringSelector = '#main-sidebar .block_area.block_area_sidebar.block_area-realtime .anif-block-ul ul li';
-      $(topAiringSelector).each((i, el) => {
-        const otherInfo = $(el).find('.fd-infor .fdi-item').map((i, el) => $(el).text().trim()).get()
-
-        res.topAiringAnimes.push({
-          id: $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).trim(),
-          name: $(el).find('.film-detail .film-name .dynamic-name')?.text()?.trim(),
-          jname: $(el).find('.film-detail .film-name .dynamic-name').attr('data-jname')?.trim(),
-          poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
-          otherInfo,
-        })
-      })
+      res.topAiringAnimes = await this.extractMostPopular($, topAiringSelector)
 
       return res;
 
@@ -637,6 +627,13 @@ class Parser {
         `${selector} .anisc-detail .film-stats .item:not(:has(.tick-item))`
       ).map((i, el) => $(el).text().trim()).get()
 
+      console.log(res.info.stats);
+      
+      res.info.stats.splice(1, 0, $(
+        `${selector} .anisc-detail .film-stats .tick-sub`
+      )?.text()?.trim())
+        
+        console.log(res.info.stats);
       
       // more seasons
       const seasonsSelector = '#main-content .os-list a.os-item';
@@ -868,8 +865,8 @@ class Parser {
           rank: $(el).find('.film-number span')?.text()?.trim(),
           name: $(el).find('.film-detail .dynamic-name')?.text()?.trim(),
           poster: $(el).find('.film-poster .film-poster-img')?.attr('data-src')?.trim(),
-          views: $(el).find('.film-detail .fd-infor .fdi-item.mr-3').text(),
-          hearts: $(el).find('.film-detail .fd-infor .fdi-item:nth-child(2)').text()
+          eps: $(el).find('.film-detail .fd-infor .tick-item.tick-sub')?.text()?.trim(),
+          views: $(el).find('.film-detail .fd-infor .fdi-item.ml-2')?.text()?.trim(),
         });
       })
 
@@ -884,7 +881,13 @@ class Parser {
       const res = [];
 
       $(selector).each((i, el) => {
-        const otherInfo = $(el).find('.fd-infor .fdi-item').map((i, el) => $(el).text().trim()).get()
+        const otherInfoSrc = $(el).find('.fd-infor .tick').text()?.trim()?.replace(/\n/g, '').split(" ");
+
+        const otherInfo = [
+          otherInfoSrc[0],
+          otherInfoSrc.pop()
+        ]
+
 
         res.push({
           id: $(el).find('.film-detail .film-name .dynamic-name')?.attr('href')?.slice(1).trim(),

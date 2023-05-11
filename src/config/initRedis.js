@@ -5,12 +5,8 @@ const client = redis.createClient({
   host: '127.0.0.1'
 });
 
-client.on('connect', () => {
-  console.log('connected to redis'); 
-})
-
 client.on('ready', () => {
-  console.log('ready to use redis'); 
+  console.log('📝 ready to use redis'); 
 })
 
 client.on('error', err => {
@@ -24,7 +20,6 @@ client.on('end', err => {
 process.on('SIGINT', () => {
   client.quit();
 })
-
 
 
 export default client

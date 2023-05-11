@@ -22,6 +22,7 @@ export const handleLogin = async (req, res, next) => {
 
           const userData = await encryptState(
             {
+              _id: user?._id,
               name: user?.name,
               email: user?.email,
               profilePicture: user?.profilePicture,

@@ -1,9 +1,11 @@
 import createHttpError from 'http-errors';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
-import gojou from '../config/gojou.js';
+import RoomChat from '../models/RoomChat.js';
+import Parser from '../api/anime.parser.js';
 import { verifyJwt, signJwt } from '../config/jwt.js';
-
+import { encryptState, decryptState } from '../config/cipher.js';
+import { socket } from '../server.js';
 
 
 export const getRoomInfo = async (req, res, next) => {
@@ -52,9 +54,10 @@ export const getRoomInfo = async (req, res, next) => {
 }
 export const updateRoomAnime = async (req, res, next) => {
   try {
+    const src = req.query.src ? decodeURIComponent(req.query.src) : null;
     const room = { data: null };
     const queryFields = [
-      'admin', 'mods', 'avatar', 
+      'admin', 'mods', 'avatar', 'roomId',
       'animeId','animeEpisodeNo', 'animeEpisodeId'
     ];   
 
@@ -66,12 +69,12 @@ export const updateRoomAnime = async (req, res, next) => {
 
     if(`${foundRoom.admin}` === req.user.id) {
       room.data = req.body;
-    } else if(foundUser.mods.map(i => `${i._id}`).includes(req.user.id)) {
+    } else if(foundRoom.mods.map(i => `${i._id}`).includes(req.user.id)) {
       const { animeId, avatar, ...data } = req.body;
       room.data = data;
     }
 
-    if(!room.data) throw createHttpError.Unauthorized();
+    if(!room.data) throw createHttpError.Forbidden();
 
 
     for (const key in room.data) {
@@ -82,8 +85,36 @@ export const updateRoomAnime = async (req, res, next) => {
 
     await foundRoom.save();
 
-    res.sendStatus(200);
+    if(!src) return res.sendStatus(200);
 
+    const eventData = {};
+    for (const key in room.data) {
+      if(queryFields.includes(key)) {
+        eventData[key] = foundRoom[key]
+      }
+    }
+
+    if(src === 'absent') {
+      const animeSrc = await Parser.fetchEpisodeSources(
+        foundRoom.animeEpisodeId,
+        'vidstreaming', 
+        'sub'
+      );
+
+      res.sendStatus(200);
+      socket.to(foundRoom.roomId).emit('anime:alter', eventData, { episode: animeSrc });
+      return;
+    }
+    
+    // changing anime
+    const animeSrc = await decryptState(
+      decodeURIComponent(src),
+      process.env.FRONTEND_STATE_SECRET
+    )
+    
+    res.sendStatus(200);
+    socket.to(foundRoom.roomId).emit('anime:alter', eventData, animeSrc);
+    return;
 
   } catch (err) {
     console.log(err);
@@ -92,7 +123,10 @@ export const updateRoomAnime = async (req, res, next) => {
 }
 export const updateRoomConfig = async (req, res, next) => {
   try {
-    const roomQueryFields = ['private', 'mods', 'members', 'admin'];
+    const roomQueryFields = [
+      'private', 'mods', 'members', 
+      'admin', 'roomId'
+    ];
     
     const { visibility, member, drop } = req.query;
     if(!visibility && !member && !drop) throw createHttpError.BadRequest();
@@ -163,7 +197,7 @@ export const updateRoomConfig = async (req, res, next) => {
       } 
     }
 
-    // --deleting member
+    // --removing member
     if(drop) {
       if(!['mod', 'member'].includes(drop))
         throw createHttpError.BadRequest();
@@ -198,9 +232,13 @@ export const updateRoomConfig = async (req, res, next) => {
       }
       await foundRoom.save();
 
-      return res.status(200).json({
+      res.status(200).json({
         message: `Removed ${drop} from room`
       });
+
+      console.log("member:remove roomID ", foundRoom.roomId);
+      socket.to(foundRoom.roomId).emit("member:remove", foundUser.email)
+
     }
 
   } catch (err) {
@@ -209,7 +247,7 @@ export const updateRoomConfig = async (req, res, next) => {
   }
 }
 
-
+// :as a member 
 export const joinRoom = async (req, res, next) => {
   try {
     if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
@@ -326,6 +364,67 @@ export const deleteRoom = async (req, res, next) => {
 }
 
 
+export const getRoomChat = async (req, res, next) => {
+  const userQueryFields = ['name', 'profilePicture'];
+  const roomQueryFields = ['private', 'members'];  
+  try {
+    const info = {
+      role: 'viewer',
+      roomChat: null
+    }
+
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, roomQueryFields);
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+
+    const foundRoomChat = await RoomChat.findOne({ refRoomId: req.params.roomId });
+    if(!foundRoomChat) throw createHttpError.NotFound('Room chat not found');
+
+
+    if(foundRoom.members.includes(req.user.id)) {
+      info.role = 'room_member';
+    }
+
+    if(foundRoom.private && info.role === 'viewer') 
+      throw createHttpError.Forbidden();
+
+    info.roomChat = await foundRoomChat.populate({
+      path: 'messages.sender', select: userQueryFields
+    });
+
+    res.status(200).json(info);
+
+    info.roomChat = null;
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export const setRoomChat = async (req, res, next) => {
+  try {
+    const info = {
+      role: 'viewer',
+    }
+
+    if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, roomQueryFields);
+    if(!foundRoom) throw createHttpError.NotFound('Room not found');
+
+    const foundRoomChat = await RoomChat.findOne({ refRoomId: req.params.roomId });
+    if(!foundRoomChat) throw createHttpError.NotFound('Room chat not found');
+
+    
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 export const handleRoomInvitation = async (req, res, next) => {
   try {
     const { roomToken } = req.params;
@@ -395,7 +494,7 @@ export const genRoomInviteToken = async (req, res, next) => {
       '55m'
     )
 
-    const inviteLink = `${process.env.FRONTEND_BASE_URL}/room/invite/${inviteToken}`;
+    const inviteLink = `${process.env.FRONTEND_DEV_BASE_URL}/room/invite/${inviteToken}`;
     
     res.status(200).json({
       message: 'Fetched new invite token',
@@ -409,8 +508,7 @@ export const genRoomInviteToken = async (req, res, next) => {
 }
 
 
-
-export const roomSSE = async (req, res, next) => {
+export const roomInit = async (req, res, next) => {
   const queryFields = [
     'name', 'roomId', 'avatar', 'private',
     'admin', 'mods', 'members', 'createdAt',
@@ -444,11 +542,19 @@ export const roomSSE = async (req, res, next) => {
 
     info.room = foundRoom;
 
+    const encData = await encryptState(
+      info, process.env.FRONTEND_STATE_SECRET
+    );
+
+    return res.status(200).json({
+      initData: encData
+    })
+
     
 
   } catch (err) {
     console.log(err);
-    gojou.emit('error', err.message);   
+    next(err);
   }
 } 
 

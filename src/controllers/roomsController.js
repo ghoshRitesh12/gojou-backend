@@ -3,7 +3,8 @@ import Parser from '../api/anime.parser.js';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
 import { signJwt } from '../config/jwt.js';
-import gojou, { g2 } from '../config/gojou.js';
+import gojou from '../config/gojou.js';
+import { socket } from '../server.js';
 
 const setMembers = (rooms) => {
   return rooms.map(room => {
@@ -38,7 +39,7 @@ export const createRoom = async (req, res, next) => {
       '55m'
     )
 
-    const roomInviteLink = `${process.env.FRONTEND_BASE_URL}/room/invite/${inviteToken}`
+    const roomInviteLink = `${process.env.FRONTEND_DEV_BASE_URL}/room/invite/${inviteToken}`
     console.log(roomInviteLink);
 
     res.status(201).json({
@@ -118,12 +119,7 @@ export const browseRooms = async (req, res, next) => {
 
     }
 
-    await gojou.emitEncrypt(
-      'anime:alter', 
-      { msg: 'dummy data lmao' }
-    )
-
-    // gojou.emit('anime:alter', res, 'anime:alter', { msg: 'dummy data lmao' } )
+    // socket.emit('anime:alter', data);
 
     return res.status(200).json(data);
 

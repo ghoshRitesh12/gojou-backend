@@ -7,7 +7,6 @@ const router = Router();
 
 router.use(checkAuth);
 
-
 router.get('/invite/:roomToken', roomController.handleRoomInvitation)
 
 router.route('/:roomId')
@@ -15,16 +14,18 @@ router.route('/:roomId')
   .put(roomController.leaveRoom)
   .delete(roomController.deleteRoom);
 
+router.route('/:roomId/chat')
+  .get(roomController.getRoomChat)
+  .post(roomController.setRoomChat)
+  
+router.get('/:roomId/init', roomController.roomInit)
 router.get('/:roomId/join', roomController.joinRoom)
+
+router.put('/:roomId/config', roomController.updateRoomConfig)
+router.put('/:roomId/anime', roomController.updateRoomAnime)
 
 router.get('/:roomId/invite-token', roomController.genRoomInviteToken)
 
-router.put('/:roomId/config', roomController.updateRoomConfig)
-
-router.put('/:roomId/anime', roomController.updateRoomAnime)
-
-
-router.get('/:roomId/sse', roomController.roomSSE)
 
 
 export default router;
