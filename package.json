@@ -1,5 +1,5 @@
 {
-  "name": "anime-room-backend",
+  "name": "gojou-backend",
   "version": "1.0.0",
   "description": "Create a room & watch anime with your friends",
   "main": "src/server.js",
