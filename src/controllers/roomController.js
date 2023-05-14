@@ -6,6 +6,7 @@ import Parser from '../api/anime.parser.js';
 import { verifyJwt, signJwt } from '../config/jwt.js';
 import { encryptState, decryptState } from '../config/cipher.js';
 import { socket } from '../server.js';
+import { readqueue, enqueue } from '../config/redisMQ.js';
 
 
 export const getRoomInfo = async (req, res, next) => {
@@ -350,6 +351,8 @@ export const deleteRoom = async (req, res, next) => {
       { $pull: { relatedRooms: { roomId: foundRoom._id } } }
     )
 
+    await RoomChat.deleteOne({ refRoomId: foundRoom.roomId });
+
     await Room.deleteOne({ _id: foundRoom._id });
 
     res.status(200).json({
@@ -389,6 +392,12 @@ export const getRoomChat = async (req, res, next) => {
     if(foundRoom.private && info.role === 'viewer') 
       throw createHttpError.Forbidden();
 
+    
+    const cachedMessages = await readqueue(foundRoomChat.refRoomId);
+    if(cachedMessages) {
+      foundRoomChat.messages.push(...cachedMessages);
+    }
+
     info.roomChat = await foundRoomChat.populate({
       path: 'messages.sender', select: userQueryFields
     });
@@ -398,11 +407,10 @@ export const getRoomChat = async (req, res, next) => {
     info.roomChat = null;
 
   } catch (err) {
+    console.log(err);
     next(err);
   }
 }
-
-
 export const setRoomChat = async (req, res, next) => {
   try {
     const info = {
@@ -411,13 +419,20 @@ export const setRoomChat = async (req, res, next) => {
 
     if(!req.params.roomId) throw createHttpError.BadRequest('Room id required');
 
-    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, roomQueryFields);
+    // if(!['text', 'sender', 'timestamp'].includes(Object.keys(req.body.chatData))) {
+    //   throw createHttpError.BadRequest('Invalid payload');
+    // }
+
+    const foundRoom = await Room.findOne({ roomId: req.params.roomId }, '_id');
     if(!foundRoom) throw createHttpError.NotFound('Room not found');
 
-    const foundRoomChat = await RoomChat.findOne({ refRoomId: req.params.roomId });
+    const foundRoomChat = await RoomChat.findOne({ refRoomId: req.params.roomId }, 'refRoomId');
     if(!foundRoomChat) throw createHttpError.NotFound('Room chat not found');
 
-    
+    const sktMsg = await enqueue(foundRoomChat.refRoomId, req.body)
+    socket.to(foundRoomChat.refRoomId).emit("message:send", sktMsg)
+
+    res.status(200).json(sktMsg)
 
   } catch (err) {
     next(err);
@@ -541,6 +556,7 @@ export const roomInit = async (req, res, next) => {
       throw createHttpError.Forbidden();
 
     info.room = foundRoom;
+
 
     const encData = await encryptState(
       info, process.env.FRONTEND_STATE_SECRET

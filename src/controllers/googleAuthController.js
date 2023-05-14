@@ -44,7 +44,7 @@ export const handleGoogleAuthCallback = async (req, res, next) => {
       }
     )
 
-    res.redirect(`${frontendBaseUrl}/auth-redirect?status=200&data=${userData}`)
+    res.redirect(`${frontendBaseUrl}/auth-redirect?status=200&data=${encodeURIComponent(userData)}`)
 
 
   } catch (err) {

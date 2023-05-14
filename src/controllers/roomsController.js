@@ -2,9 +2,8 @@ import createHttpError from 'http-errors';
 import Parser from '../api/anime.parser.js';
 import Room from '../models/Room.js';
 import User from '../models/User.js';
+import RoomChat from '../models/RoomChat.js';
 import { signJwt } from '../config/jwt.js';
-import gojou from '../config/gojou.js';
-import { socket } from '../server.js';
 
 const setMembers = (rooms) => {
   return rooms.map(room => {
@@ -29,6 +28,11 @@ export const createRoom = async (req, res, next) => {
     roomData.animeEpisodeId = episodes[0].id;
     
     const newRoom = await Room.create(roomData);
+    await RoomChat.create({ 
+      refRoomId: newRoom.roomId,
+      messages: []
+    })
+    
     const foundUser = await User.findById(req.user.id, ['createdRooms', 'relatedRooms']);
     foundUser.createdRooms = [...foundUser.createdRooms, `${newRoom._id}`];
     await foundUser.save();

@@ -1,36 +1,64 @@
-import redisClient from '../config/initRedis';
-import RoomChat from '../models/RoomChat';
+import redisClient from './initRedis.js';
+import RoomChat from '../models/RoomChat.js';
 
 
-export default setRedisMq = async (roomId, val) => {
+export const readqueue = async (roomId) => {
+  roomId = `chat_${roomId}`;
   try {
+    if(await redisClient.exists(roomId)) {
+      const roomChats = (
+        await redisClient.lRange(roomId, 0, -1)
+      ).map(i => JSON.parse(i))
 
-    if(await redisClient.lRange(roomId, 0, 1)) {
-      await redisClient.rPush(roomId, JSON.stringify(val));
-      return;
+      return roomChats;
+    }
+    return null;
+
+  } catch (err) {
+    throw err;    
+  }
+}
+
+
+export const enqueue = async (roomId, val = {}) => {
+  roomId = `chat_${roomId}`;
+  try {
+    const info = {
+      text: val.chatData.text,
+      sender: {
+        _id: val.chatData.sender,
+        name: val.extraData.name,
+        profilePicture: val.extraData.pfp,
+      },
+      timestamp: val.chatData.timestamp 
+    }
+
+    if(await redisClient.exists(roomId)) {
+      await redisClient.rPush(roomId, JSON.stringify(val.chatData));
+      return info;
     }
 
     
-    await redisClient.rPush(roomId, JSON.stringify(val));
-    await redisClient.expire(roomId, 60);
-
-    const mqT = setTimeout(async () => {
+    await redisClient.rPush(roomId, JSON.stringify(val.chatData));
+    
+    const enqTimeout = setTimeout(async () => {
       try {
-        const roomChatMq = await redisClient.lRange(roomId, 0, -1);
-        console.log(roomChatMq);
-        
-        // const foundRoomChat = await RoomChat.findOne({ refRoomId: roomId });
-        // foundRoomChat.messages.push(...roomChatMq);
-        // await foundRoomChat.save();
+        const roomChats = await redisClient.lRange(roomId, 0, -1);
+        console.log(roomChats);
+
+        const foundRoomChat = await RoomChat.findOne({ refRoomId: roomId.split("_")[1] });
+        foundRoomChat.messages.push(...roomChats.map(i => JSON.parse(i)));
+        await foundRoomChat.save();
 
         await redisClient.del(roomId);
-        clearTimeout(mqT);
+        clearTimeout(enqTimeout);
 
       } catch (err) {
         throw err;
       }
-    }, 59000)
+    }, 20000)
 
+    return info;
 
   } catch (err) {
     throw err;    
